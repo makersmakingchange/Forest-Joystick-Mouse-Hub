@@ -1,0 +1,17 @@
+Version 1.0 | 2023-Sep-28
+ - Initial Version
+    - 4 Assistive Switch Inputs Jacks
+    - 1 Mode Switch Input Jack
+    - 1 Analog TRRS Joystick Input Jack
+    - 1 RJ25 I2C Jack
+    - 1 Mode Switch Button
+    - 1 Calibration Button
+    - 5 Neopixel indicators; 3 for Slot, 2 for Mouse/Joystick Output
+ - Custom PCB
+ - Adafruit Qt Py SAMD21 Microcontroller Dev Board
+ - 
+
+
+
+
+

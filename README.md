@@ -11,7 +11,7 @@ The current version of the Forest Hub (v1.0) has not been built or tested. The p
 <img src="Photos/Forest_Hub.png" width="500" alt="A Forest Hub in a red enclosure.">
 
 
-MMC Assistive Device Library Listing: https://makersmakingchange.com/s/product/forest-hub/01tJR000000E4bdYAC
+MMC Assistive Device Library Listing: https://makersmakingchange.com/s/product/forest-joystick-mouse-hub/01tJR000000E4bdYAC
 
 ## OpenAT Joysticks
 This design is part of the [OpenAT Joystick Project](https://github.com/makersmakingchange/OpenAT-Joysticks), a collection of open source designs for digital access and adapted gaming.  
@@ -23,7 +23,7 @@ This is an open-source assistive technology, so anyone is free to build it. All 
 
 ### 2. Request a build of this device
 
-If you would like to obtain a Forest Hub, you may submit a build request through the [MMC Assistive Device Library Listing](https://makersmakingchange.com/s/product/forest-hub/01tJR000000E4bdYAC) to have a volunteer maker build the device. As the requestor, you are responsible for reimbursing the maker for the cost of materials and any shipping.
+If you would like to obtain a Forest Hub, you may submit a build request through the [MMC Assistive Device Library Listing](https://makersmakingchange.com/s/product/forest-joystick-mouse-hub/01tJR000000E4bdYAC) to have a volunteer maker build the device. As the requestor, you are responsible for reimbursing the maker for the cost of materials and any shipping.
 
 A limited number of these devices may be available at no-cost to people with disabilities that reside within Canada as part of the [Accesible Technology Program Grant](https://ised-isde.canada.ca/site/accessible-technology-program/en). If you think this applies to you, please send an email to info@makersmakingchange.com.
 
@@ -62,7 +62,7 @@ Reference the Assembly Guide section in the [Maker Guide](/Documentation/Forest_
 | Document             | Version | Link |
 |----------------------|---------|------|
 | Design Rationale     | 1.0     | [Forest_Hub_Design_Rationale](/Documentation/Forest_Hub_Design_Rationale.pdf)     |
-| Maker Guide          | 1.0     | [Forest_Hub_Maker_Checklist](/Documentation/Forest_Hub_Maker_Guide.pdf)     |
+| Maker Guide          | 1.0     | [Forest_Hub_Maker_Guide](/Documentation/Forest_Hub_Maker_Guide.pdf)     |
 | Bill of Materials    | 1.0     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
 | User Guide           | 1.0     | [Forest_Hub_User_Guide](/Documentation/Forest_Hub_User_Guide.pdf)    |
 | Changelog            | 1.0     | [Changes](Changes.txt)     |

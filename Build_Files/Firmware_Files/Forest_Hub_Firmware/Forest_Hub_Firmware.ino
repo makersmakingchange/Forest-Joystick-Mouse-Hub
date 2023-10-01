@@ -107,16 +107,16 @@ int outputX;
 int outputY;
 
 //Declare switch state variables for each switch
-int switchAState;           // Mouse mode = left click
-int switchBState;           // Mouse mode = scroll mode
-int switchCState;           // Mouse mode = right click
-int switchDState;           // Mouse mode = middle click
+bool switchS1State;           // Mouse mode = left click
+bool switchS2State;           // Mouse mode = scroll mode
+bool switchS3State;           // Mouse mode = right click
+bool switchS4State;           // Mouse mode = middle click
 
 //Previous status of switches
-int switchAPrevState = HIGH;
-int switchBPrevState = HIGH;
-int switchCPrevState = HIGH;
-int switchDPrevState = HIGH;
+bool switchS1PrevState = HIGH;
+bool switchS2PrevState = HIGH;
+bool switchS3PrevState = HIGH;
+bool switchS4PrevState = HIGH;
 
 int currentDeadzoneValue;
 int currentMouseCursorSpeedValue;
@@ -165,10 +165,10 @@ _functionList apiFunction[8] = {
 
 //Switch properties
 const switchStruct switchProperty[] {
-  {1, "A", 1},
-  {2, "B", 2},
-  {3, "C", 3},
-  {4, "D", 4}
+  {1, "S1", 1},
+  {2, "S2", 2},
+  {3, "S3", 3},
+  {4, "S4", 4}
 
 };
 
@@ -416,16 +416,20 @@ void joystickActions() {
 
 void readSwitches() {
   // Update Prev Switch States
-  switchAPrevState = switchAState;
-  switchBPrevState = switchBState;
-  switchCPrevState = switchCState;
-  switchDPrevState = switchDState;
+  switchS1PrevState = switchS1State;
+  switchS2PrevState = switchS2State;
+  switchS3PrevState = switchS3State;
+  switchS4PrevState = switchS4State;
+  switchSMPrevState = switchSMState;
+  buttonCPrevState  = buttonCState;
+  buttonMPrevState  = buttonMState;
 
   //Update status of switch inputs
-  switchAState = digitalRead(PIN_SW_S1);
-  switchBState = digitalRead(PIN_SW_S2);
-  switchCState = digitalRead(PIN_SW_S3);
-  switchDState = digitalRead(PIN_SW_S4);
+  switchS1State = digitalRead(PIN_SW_S1);
+  switchS2State = digitalRead(PIN_SW_S2);
+  switchS3State = digitalRead(PIN_SW_S3);
+  switchS4State = digitalRead(PIN_SW_S4);
+
 
 }
 
@@ -442,28 +446,28 @@ void readSwitches() {
 void switchesJoystickActions() {
 
   //Perform button actions
-  if (!switchAState) {
+  if (!switchS1State) {
     gamepadButtonPress(switchProperty[0].switchButtonNumber);
   }
-  else if (switchAState && !switchAPrevState) {
+  else if (switchS1State && !switchS1PrevState) {
     gamepadButtonRelease(switchProperty[0].switchButtonNumber);
   }
 
-  if (!switchBState) {
+  if (!switchS2State) {
     gamepadButtonPress(switchProperty[1].switchButtonNumber);
-  } else if (switchBState && !switchBPrevState) {
+  } else if (switchS2State && !switchS2PrevState) {
     gamepadButtonRelease(switchProperty[1].switchButtonNumber);
   }
 
-  if (!switchCState) {
+  if (!switchS3State) {
     gamepadButtonPress(switchProperty[2].switchButtonNumber);
-  } else if (switchCState && !switchCPrevState) {
+  } else if (switchS3State && !switchS3PrevState) {
     gamepadButtonRelease(switchProperty[2].switchButtonNumber);
   }
 
-  if (!switchDState) {
+  if (!switchS4State) {
     gamepadButtonPress(switchProperty[3].switchButtonNumber);
-  } else if (switchDState && !switchDPrevState) {
+  } else if (switchS4State && !switchS4PrevState) {
     gamepadButtonRelease(switchProperty[3].switchButtonNumber);
   }
 
@@ -500,16 +504,28 @@ void initMouse()
 void switchesMouseActions() {
 
   //Perform button actions
-  if (!switchAState) {
+  if (!switchS1State) {
     Mouse.press(MOUSE_LEFT);
   }
-  else if (switchAState && !switchAPrevState) {
+  else if (switchS1State && !switchS1PrevState) {
     Mouse.release(MOUSE_LEFT);
   }
 
-  if (!switchBState) {
+  if (!switchS2State) {
+    Mouse.press(MOUSE_MIDDLE);
+  } else if (switchS2State && !switchS2PrevState) {
+    Mouse.release(MOUSE_MIDDLE);
+  }
+
+  if (!switchS3State) {
+    Mouse.press(MOUSE_RIGHT);
+  } else if (switchS3State && !switchS3PrevState) {
+    Mouse.release(MOUSE_RIGHT);
+  }
+
+  if (!switchS4State) {
     int counter = 0;
-    while (!switchBState) {
+    while (!switchS4State) {
 
       readJoystick();
       readSwitches();
@@ -537,19 +553,6 @@ void switchesMouseActions() {
 
     }
   }
-
-  if (!switchCState) {
-    Mouse.press(MOUSE_RIGHT);
-  } else if (switchCState && !switchCPrevState) {
-    Mouse.release(MOUSE_RIGHT);
-  }
-
-  if (!switchDState) {
-    Mouse.press(MOUSE_MIDDLE);
-  } else if (switchDState && !switchDPrevState) {
-    Mouse.release(MOUSE_MIDDLE);
-  }
-
 }
 
 //***CHECK SETUP MODE FUNCTION**//
@@ -565,14 +568,14 @@ void switchesMouseActions() {
 void checkSetupMode() {
 
   //Update status of switch inputs
-  switchAState = digitalRead(PIN_SW_S1);
-  switchBState = digitalRead(PIN_SW_S2);
-  switchCState = digitalRead(PIN_SW_S3);
-  switchDState = digitalRead(PIN_SW_S4);
+  switchS1State = digitalRead(PIN_SW_S1);
+  switchS2State = digitalRead(PIN_SW_S2);
+  switchS3State = digitalRead(PIN_SW_S3);
+  switchS4State = digitalRead(PIN_SW_S4);
 
   int mode = 0;
 
-  if (!switchAState && !switchBState) {
+  if (!switchS1State && !switchS2State) {
     Serial.println("Mode selection: Press Button SW1 to Switch Mode, Button SW2 to Confirm selection");
     pixels.setPixelColor(0, pixels.Color(0, 255, 0)); //green
     pixels.show();
@@ -596,13 +599,13 @@ void checkSetupMode() {
     boolean continueLoop = true;
 
     while (continueLoop) {
-      switchAPrevState = switchAState;
-      switchBPrevState = switchBState;
+      switchS1PrevState = switchS1State;
+      switchS2PrevState = switchS2State;
       
-      switchAState = digitalRead(PIN_SW_S1);
-      switchBState = digitalRead(PIN_SW_S2);
+      switchS1State = digitalRead(PIN_SW_S1);
+      switchS2State = digitalRead(PIN_SW_S2);
 
-      if (!switchAState && switchAPrevState) { // If button 1 pushed, change mode
+      if (!switchS1State && switchS1PrevState) { // If button 1 pushed, change mode
         mode += 1;
         if (mode > 1) {
           mode = 0;
@@ -623,7 +626,7 @@ void checkSetupMode() {
         }
       }
 
-      if (!switchBState && switchBPrevState) { // If button 2 pushed, exit loop
+      if (!switchS2State && switchS2PrevState) { // If button 2 pushed, exit loop
         continueLoop = false;
       }
 

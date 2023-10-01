@@ -91,6 +91,7 @@ int versionNumber;
 int deadzoneLevel;
 int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
+int ledBrightness;
 
 
 
@@ -101,6 +102,7 @@ FlashStorage(versionNumberFlash, int);
 FlashStorage(deadzoneLevelFlash, int);
 FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
+FlashStorage(ledBrightnessFlash,int);
 
 long lastInteractionUpdate;
 
@@ -155,6 +157,8 @@ _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickD
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
+//_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
+//_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
 
 // Declare array of API functions
 _functionList apiFunction[8] = {
@@ -189,17 +193,22 @@ Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 // Return     : void
 //*********************************//
 void setup() {
+    // Initialize Memory
+  initMemory();
+  delay(FLASH_DELAY_TIME);
+  
   pixels.begin(); // Initiate pixel on microcontroller
+  pixels.clear();
+  pixels.setBrightness(ledBrightness);
   pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Turn LED red to start
   pixels.show();
 
+  leds.begin();
+  leds.clear();
+  leds.setBrightness(ledBrightness);
+  leds.show();
+ 
   
-
-  // Initialize Memory
-  initMemory();
-
-  delay(FLASH_DELAY_TIME);
-
     // Begin HID gamepad or mouse, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
@@ -225,7 +234,7 @@ void setup() {
   checkSetupMode(); // Check to see if operating mode change
   delay(STARTUP_DELAY_TIME);
 
-  leds.begin();
+ 
 
 
   // Turn on indicator light, depending on mode selection
@@ -297,6 +306,7 @@ void initMemory() {
     deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
     cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;
     operatingMode = DEFAULT_MODE;
+    ledBrightness = LED_DEFAULT_BRIGHTNESS;
     isConfigured = 1;
 
     //Write default settings to flash storage
@@ -305,6 +315,7 @@ void initMemory() {
     deadzoneLevelFlash.write(deadzoneLevel);
     cursorSpeedLevelFlash.write(cursorSpeedLevel);
     operatingModeFlash.write(operatingMode);
+    ledBrightnessFlash.write(ledBrightness);
 
     isConfiguredFlash.write(isConfigured);
     delay(FLASH_DELAY_TIME);
@@ -316,6 +327,7 @@ void initMemory() {
     deadzoneLevel = deadzoneLevelFlash.read();
     cursorSpeedLevel = cursorSpeedLevelFlash.read();
     operatingMode = operatingModeFlash.read();
+    ledBrightness = ledBrightnessFlash.read();
     delay(FLASH_DELAY_TIME);
   }
 
@@ -593,10 +605,16 @@ void checkSetupMode() {
       case MODE_MOUSE:
         pixels.setPixelColor(0, pixels.Color(255, 255, 0)); //yellow
         pixels.show();
+        leds.setPixelColor(LED_MOUSE,pixels.Color(255,255,0)); //yellow
+        leds.setPixelColor(LED_GAMEPAD,pixels.Color(0,0,0)); //off
+        leds.show();
         break;
       case MODE_GAMEPAD:
         pixels.setPixelColor(0, pixels.Color(0, 0, 255)); //blue
         pixels.show();
+        leds.setPixelColor(LED_GAMEPAD, pixels.Color(0, 0, 255)); //blue
+        leds.setPixelColor(LED_MOUSE, pixels.Color(0, 0, 0)); //off
+        leds.show();
         break;
       default:
         break;

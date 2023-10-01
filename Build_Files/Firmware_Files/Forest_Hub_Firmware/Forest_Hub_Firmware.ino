@@ -117,12 +117,37 @@ bool switchS1State;           // Mouse mode = left click
 bool switchS2State;           // Mouse mode = scroll mode
 bool switchS3State;           // Mouse mode = right click
 bool switchS4State;           // Mouse mode = middle click
+bool switchSMState;
+bool buttonCState;
+bool buttonMState;
 
 //Previous status of switches
 bool switchS1PrevState = HIGH;
 bool switchS2PrevState = HIGH;
 bool switchS3PrevState = HIGH;
 bool switchS4PrevState = HIGH;
+bool switchSMPrevState = HIGH;
+bool buttonCPrevState  = HIGH;
+bool buttonMPrevState  = HIGH;
+
+// Magic numbers for multi-button analog resistor network.
+// SM_Switch - Mode Switch - Calib Switch
+// voltages v000 = voltage when off-off-off
+const int v000 = 644;
+const int v001 = 610;
+const int v010 = 563;
+const int v011 = 513;
+const int v100 = 419;
+const int v101 = 327;
+const int v110 = 185;
+const int v111 = 1;
+const int t001 = (v000+v001)/2;
+const int t010 = (v001+v010)/2;
+const int t011 = (v010+v011)/2;
+const int t100 = (v011+v100)/2;
+const int t101 = (v100+v101)/2;
+const int t110 = (v101+v110)/2;
+const int t111 = (v110+v111)/2;
 
 int currentDeadzoneValue;
 int currentMouseCursorSpeedValue;
@@ -230,6 +255,8 @@ void setup() {
   pinMode(PIN_SW_S2, INPUT_PULLUP);
   pinMode(PIN_SW_S3, INPUT_PULLUP);
   pinMode(PIN_SW_S4, INPUT_PULLUP);
+  pinMode(PIN_BUTTON, INPUT);
+
 
   checkSetupMode(); // Check to see if operating mode change
   delay(STARTUP_DELAY_TIME);
@@ -447,6 +474,57 @@ void readSwitches() {
   switchS2State = digitalRead(PIN_SW_S2);
   switchS3State = digitalRead(PIN_SW_S3);
   switchS4State = digitalRead(PIN_SW_S4);
+
+  int buttonState   = analogRead(PIN_BUTTON); // read the button array
+
+   if (buttonState < t111)
+ {
+  switchSMState = true;
+  buttonMState = true;
+  buttonCState = true;
+ }
+ else if (buttonState < t110)
+ {
+  switchSMState = true;
+  buttonMState = true;
+  buttonCState = false;
+ }
+ else if (buttonState < t101)
+  {
+  switchSMState = true;
+  buttonMState = false;
+  buttonCState = true;
+ }
+ else if (buttonState < t100)
+  {
+  switchSMState = true;
+  buttonMState = false;
+  buttonCState = false;
+ }
+  else if (buttonState < t011)
+  {
+  switchSMState = false;
+  buttonMState = true;
+  buttonCState = true;
+ }
+  else if (buttonState < t010)
+  {
+  switchSMState = false;
+  buttonMState = true;
+  buttonCState = false;
+ }
+  else if (buttonState < t001)
+  {
+  switchSMState = false;
+  buttonMState = false;
+  buttonCState = true;
+ }
+  else 
+  {
+  switchSMState = false;
+  buttonMState = false;
+  buttonCState = false;
+ }
 
 
 }

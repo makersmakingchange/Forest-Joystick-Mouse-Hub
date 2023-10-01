@@ -23,13 +23,7 @@
 #include <Adafruit_NeoPixel.h> //Lights on QtPy
 
 
-#define MODE_MOUSE 1
-#define MODE_GAMEPAD 0
-
 #define USB_DEBUG  0 // Set this to 0 for best performance.
-
-#define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
-#define DEFAULT_DEBOUNCING_TIME 5
 
 // ==================== Pin Assignment =================
 
@@ -44,7 +38,12 @@
 #define PIN_BUZZER        A8 //SCK
 
 
-#define USB_DEBUG  0 // Set this to 0 for best performance.
+#define LED_SLOT1         0
+#define LED_SLOT2         1
+#define LED_SLOT3         2
+#define LED_GAMEPAD       3
+#define LED_MOUSE         4
+
 
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
@@ -58,6 +57,13 @@
 #define JOYSTICK_MAX_DEADZONE_VALUE          64             //Out of 127
 #define JOYSTICK_MAX_VALUE                   127
 
+#define MOUSE_DEFAULT_CURSOR_SPEED_LEVEL     5              // Default cursor speed level
+#define MOUSE_MIN_CURSOR_SPEED_LEVEL         1              //Minimum cursor speed level
+#define MOUSE_MAX_CURSOR_SPEED_LEVEL         10             //Maxium cursor speed level
+#define MOUSE_MIN_CURSOR_SPEED_VALUE         1              //Minimum cursor speed value [pixels per update]
+#define MOUSE_MAX_CURSOR_SPEED_VALUE         10
+#define MOUSE_MAX_XY                         6            // Amount to move mouse at max deflection (max "speed") [pixels]
+
 #define JOYSTICK_REACTION_TIME               30             //Minimum time between each action in ms
 #define SWITCH_REACTION_TIME                 100            //Minimum time between each switch action in ms
 #define STARTUP_DELAY_TIME                   5000           //Time to wait on startup
@@ -67,28 +73,27 @@
 #define FAST_SCROLL_DELAY                    60             //Minimum time, in ms, between each fast scroll action (higher delay = slower scroll speed)
 #define SLOW_SCROLL_NUM                      10             //Number of times to scroll at the slow scroll rate
 
-#define MOUSE_MAX_XY                         6            // Amount to move mouse at max deflection (max "speed") [pixels]
-
 
 //Define model number and version number
 #define JOYSTICK_MODEL                        1
 #define JOYSTICK_VERSION                      2
 
 
-
-XACGamepad gamepad;                                    //Starts an instance of the USB gamepad object
+XACGamepad gamepad;   //Starts an instance of the USB gamepad object
 
 //Declare variables for settings
 int isConfigured;
 int modelNumber;
 int versionNumber;
 int deadzoneLevel;
+int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode = MODE_GAMEPAD;   // 1 = Mouse mode, 0 = Joystick Mode 
 
 FlashStorage(isConfiguredFlash, int);
 FlashStorage(modelNumberFlash, int);
 FlashStorage(versionNumberFlash, int);
 FlashStorage(deadzoneLevelFlash, int);
+FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 
 long lastInteractionUpdate;
@@ -103,7 +108,7 @@ int outputY;
 int switchAState;           // Mouse mode = left click
 int switchBState;           // Mouse mode = scroll mode
 int switchCState;           // Mouse mode = right click
-int switchDState;           // Mouse mode = middle click              // Switch in the joystick (press down)
+int switchDState;           // Mouse mode = middle click
 
 //Previous status of switches
 int switchAPrevState = HIGH;
@@ -112,6 +117,7 @@ int switchCPrevState = HIGH;
 int switchDPrevState = HIGH;
 
 int currentDeadzoneValue;
+int currentMouseCursorSpeedValue;
 
 bool settingsEnabled = false;
 
@@ -140,13 +146,17 @@ _functionList getModelNumberFunction =            {"MN", "0", "0", &getModelNumb
 _functionList getVersionNumberFunction =          {"VN", "0", "0", &getVersionNumber};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
+_functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
+_functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
 
 // Declare array of API functions
-_functionList apiFunction[5] = {
+_functionList apiFunction[7] = {
   getModelNumberFunction,
   getVersionNumberFunction,
   getJoystickDeadZoneFunction,
-  setJoystickDeadZoneFunction
+  setJoystickDeadZoneFunction,
+  getMouseCursorSpeedFunction,
+  setMouseCursorSpeedFunction
 };
 
 //Switch properties
@@ -159,6 +169,7 @@ const switchStruct switchProperty[] {
 };
 
 Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL);  // Create a pixel strand with 1 pixel on QtPy
+Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 
 //***MICROCONTROLLER AND PERIPHERAL CONFIGURATION***//
 // Function   : setup
@@ -174,6 +185,8 @@ void setup() {
   pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Turn LED red to start
   pixels.show();
 
+  
+
   // Initialize Memory
   initMemory();
 
@@ -182,7 +195,7 @@ void setup() {
     // Begin HID gamepad or mouse, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
-      Mouse.begin();
+      initMouse();
       break;
     case MODE_GAMEPAD:
       gamepad.begin();
@@ -204,15 +217,22 @@ void setup() {
   checkSetupMode(); // Check to see if operating mode change
   delay(STARTUP_DELAY_TIME);
 
+  leds.begin();
+
+
   // Turn on indicator light, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
       pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
       pixels.show();
+      leds.setPixelColor(LED_MOUSE,pixels.Color(255,255,0));// Turn LED yellow
+      leds.show();
       break;
     case MODE_GAMEPAD:
       pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Turn LED blue
       pixels.show();
+      leds.setPixelColor(LED_GAMEPAD, pixels.Color(0, 0, 255)); // Turn LED blue
+      leds.show();
       break;
   }
 
@@ -266,12 +286,14 @@ void initMemory() {
     modelNumber = 0;
     versionNumber = 2;
     deadzoneLevel = 6;
+    cursorSpeedLevel = 5;
     isConfigured = 1;
 
     //Write default settings to flash storage
     modelNumberFlash.write(modelNumber);
     versionNumberFlash.write(versionNumber);
     deadzoneLevelFlash.write(deadzoneLevel);
+    cursorSpeedLevelFlash.write(cursorSpeedLevel);
     operatingModeFlash.write(operatingMode);
 
     isConfiguredFlash.write(isConfigured);
@@ -282,6 +304,7 @@ void initMemory() {
     modelNumber = modelNumberFlash.read();
     versionNumber = versionNumberFlash.read();
     deadzoneLevel = deadzoneLevelFlash.read();
+    cursorSpeedLevel = cursorSpeedLevelFlash.read();
     operatingMode = operatingModeFlash.read();
     delay(FLASH_DELAY_TIME);
   }
@@ -298,6 +321,10 @@ void initMemory() {
 
   Serial.print("Deadzone Level: ");
   Serial.println(deadzoneLevel);
+
+  Serial.print("Cursor Speed Level: ");
+  Serial.println(cursorSpeedLevel);
+
 }
 
 //***INITIALIZE JOYSTICK FUNCTION***//
@@ -361,7 +388,8 @@ void joystickActions() {
   switch (operatingMode) {
     case MODE_MOUSE:
       //mouse action
-      Mouse.move(MOUSE_MAX_XY * outputX / 127, -MOUSE_MAX_XY * outputY / 127, 0);
+      
+      mouseJoystickMove(outputX, outputY);  
       break;
     case MODE_GAMEPAD:
       //Perform joystick HID action
@@ -437,6 +465,24 @@ void switchesJoystickActions() {
 
 }
 
+//***INITIALIZE MOUSE FUNCTION***//
+// Function   : initMouse
+//
+// Description: This function initializes mouse as an output.
+//
+// Parameters : void
+//
+// Return     : void
+//****************************************//
+void initMouse()
+{
+  Mouse.begin(); // Initialize USB HID Mouse
+  getMouseCursorSpeed(true,false);        //Get mouse cursor speed stored in memory
+}
+
+
+
+
 //***MOUSE MODE - SWITCH ACTIONS FUNCTION**//
 // Function   : switchesMouseActions
 //
@@ -465,11 +511,11 @@ void switchesMouseActions() {
       readSwitches();
 
       if (outputY > (currentDeadzoneValue)) {
-        Mouse.move(0, 0, 1);
+        Mouse.move(0, 0, 1);                  // Scroll up
         counter++;
       }
       else if (outputY < -currentDeadzoneValue) {
-        Mouse.move(0, 0, -1);
+        Mouse.move(0, 0, -1);                 //Scroll down
         counter++;
       } else if (outputY == 0) {
         counter = 0;
@@ -629,6 +675,23 @@ void updateDeadzone(int inputDeadzoneLevel) {
   }
 }
 
+//***UPDATE CURSOR SPEED FUNCTION***//
+// Function   : updateCursorSpeed
+//
+// Description: This function updates cursor speed value based on cursor speed level.
+//
+// Parameters :  inputCursorSpeedLevel : int : The input cursor speed level
+//
+// Return     : void
+//****************************************//
+
+void updateCursorSpeed(int inputCursorSpeedLevel) {
+  if ((inputCursorSpeedLevel >= MOUSE_MIN_CURSOR_SPEED_LEVEL) && (inputCursorSpeedLevel <= MOUSE_MAX_CURSOR_SPEED_LEVEL)) { //todo
+    currentMouseCursorSpeedValue = int ((inputCursorSpeedLevel * MOUSE_MAX_CURSOR_SPEED_VALUE) / MOUSE_MAX_CURSOR_SPEED_LEVEL);
+    currentMouseCursorSpeedValue = constrain(currentMouseCursorSpeedValue, 0, MOUSE_MAX_CURSOR_SPEED_VALUE);
+  }
+}
+
 
 //***GAMEPAD BUTTON PRESS FUNCTION***//
 // Function   : gamepadButtonPress
@@ -707,7 +770,7 @@ void gamepadButtonReleaseAll()
 }
 
 
-//***PERFORM JOYSTICK MOVE FUNCTION***//
+//***PERFORM GAMEPAD MOVE FUNCTION***//
 // Function   : gamepadJoystickMove
 //
 // Description: This function performs joystick move
@@ -720,6 +783,22 @@ void gamepadJoystickMove(int x, int y)
 {
   gamepad.move(x, -y);
   gamepad.send();
+}
+
+//***PERFORM MOUSE MOVE FUNCTION***//
+// Function   : mouseJoystickMove
+//
+// Description: This function performs joystick move
+//
+// Parameters : int : x and y : The output gamepad x and y
+//
+// Return     : void
+//****************************************//
+void mouseJoystickMove(int x, int y)
+{
+  // Move the mouse based on current cursor speed
+  Mouse.move(currentMouseCursorSpeedValue * outputX / 127, -currentMouseCursorSpeedValue * outputY / 127, 0); 
+  
 }
 
 
@@ -1117,6 +1196,91 @@ void setJoystickDeadZone(bool responseEnabled, bool apiEnabled, String optionalP
   setJoystickDeadZone(responseEnabled, apiEnabled, optionalParameter.toInt());
 }
 
+ 
+//*** GET MOUSER CURSOR SPEEDE FUNCTION***//
+/// Function   : getMouseCursorSpeed
+//
+// Description: This function retrieves the mouse cursor speed.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+int getMouseCursorSpeed(bool responseEnabled, bool apiEnabled) {
+  String cursorSpeedCommand = "SS";
+  int tempCursorSpeedLevel;
+  tempCursorSpeedLevel = cursorSpeedLevelFlash.read();
+
+  if ((tempCursorSpeedLevel <= MOUSE_MIN_CURSOR_SPEED_LEVEL) || (tempCursorSpeedLevel >= MOUSE_MAX_CURSOR_SPEED_LEVEL)) {
+    tempCursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;
+    cursorSpeedLevelFlash.write(tempCursorSpeedLevel);
+  }
+  updateCursorSpeed(tempCursorSpeedLevel);
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "SS,0", true, tempCursorSpeedLevel);
+  return tempCursorSpeedLevel;
+}
+
+//***GET MOUSE CURSOR SPEED API FUNCTION***//
+// Function   : getMouseCursorSpeed
+//
+// Description: This function is redefinition of main getMouseCursorSpeed function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getMouseCursorSpeed(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getMouseCursorSpeed(responseEnabled, apiEnabled);
+  }
+}
+
+//*** SET MOUSE CURSOR SPEED FUNCTION***//
+/// Function   : setMouseCursorSpeed
+//
+// Description: This function sets the mouse cursor speed.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               inputCursorSpeedLevel : int : The input cursor speed level
+//
+// Return     : void
+//*********************************//
+void setMouseCursorSpeed(bool responseEnabled, bool apiEnabled, int inputCursorSpeedLevel) {
+  String cursorSpeedCommand = "SS";
+  if ((inputCursorSpeedLevel >= MOUSE_MIN_CURSOR_SPEED_LEVEL) && (inputCursorSpeedLevel <= MOUSE_MAX_CURSOR_SPEED_LEVEL)) {
+    cursorSpeedLevelFlash.write(inputCursorSpeedLevel);
+    updateCursorSpeed(inputCursorSpeedLevel);
+    printResponseInt(responseEnabled, apiEnabled, true, 0, "SS,1", true, inputCursorSpeedLevel);
+  }
+  else {
+    printResponseInt(responseEnabled, apiEnabled, false, 3, "SS,1", true, inputCursorSpeedLevel);
+  }
+}
+
+//***SET MOUSE CURSOR SPEED API FUNCTION***//
+// Function   : setMouseCursorSpeed
+//
+// Description: This function is redefinition of main setMouseCursorSpeed function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setMouseCursorSpeed(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  setMouseCursorSpeed(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
 
 //***CALCULATE THE MAGNITUDE OF A VECTOR***//
 // Function   : calcMag

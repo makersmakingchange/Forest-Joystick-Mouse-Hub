@@ -1,5 +1,3 @@
-
-
 #include <Adafruit_NeoPixel.h> //Lights on QtPy
 
 // ==================== Pin Assignment =================

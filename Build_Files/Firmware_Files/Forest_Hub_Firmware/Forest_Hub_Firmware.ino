@@ -75,6 +75,7 @@
 
 
 //Define model number and version number
+#define JOYSTICK_DEVICE                       1                
 #define JOYSTICK_MODEL                        1
 #define JOYSTICK_VERSION                      2
 
@@ -83,6 +84,7 @@ XACGamepad gamepad;   //Starts an instance of the USB gamepad object
 
 //Declare variables for settings
 int isConfigured;
+int deviceNumber;
 int modelNumber;
 int versionNumber;
 int deadzoneLevel;
@@ -90,6 +92,7 @@ int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode = MODE_GAMEPAD;   // 1 = Mouse mode, 0 = Joystick Mode 
 
 FlashStorage(isConfiguredFlash, int);
+FlashStorage(deviceNumberFlash,int);
 FlashStorage(modelNumberFlash, int);
 FlashStorage(versionNumberFlash, int);
 FlashStorage(deadzoneLevelFlash, int);
@@ -142,6 +145,7 @@ typedef struct {
 
 
 // Declare individual API functions with command, parameter, and corresponding function
+_functionList getDeviceNumberFunction =           {"DN", "0", "0", &getDeviceNumber};
 _functionList getModelNumberFunction =            {"MN", "0", "0", &getModelNumber};
 _functionList getVersionNumberFunction =          {"VN", "0", "0", &getVersionNumber};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
@@ -150,7 +154,8 @@ _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCurs
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
 
 // Declare array of API functions
-_functionList apiFunction[7] = {
+_functionList apiFunction[8] = {
+  getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
   getJoystickDeadZoneFunction,
@@ -569,7 +574,7 @@ void checkSetupMode() {
   int mode = 0;
 
   if (!switchAState && !switchBState) {
-    Serial.println("Mode selection: Press Button A to Switch Mode, Button B to Confirm selection");
+    Serial.println("Mode selection: Press Button SW1 to Switch Mode, Button SW2 to Confirm selection");
     pixels.setPixelColor(0, pixels.Color(0, 255, 0)); //green
     pixels.show();
     delay(3000);
@@ -1042,11 +1047,46 @@ void printResponseFloat(bool responseEnabled, bool apiEnabled, bool responseStat
 
 }
 
+//***GET DEVICE NUMBER FUNCTION***//
+// Function   : getDeviceNumber
+//
+// Description: This function retrieves the current device number.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getDeviceNumber(bool responseEnabled, bool apiEnabled) {
+  int tempDeviceNumber = JOYSTICK_DEVICE;
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "DN,0", true, tempDeviceNumber);
+
+}
+//***GET DEVICE NUMBER API FUNCTION***//
+// Function   : getDeviceNumber
+//
+// Description: This function is redefinition of main getDeviceNumber function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getDeviceNumber(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getDeviceNumber(responseEnabled, apiEnabled);
+  }
+}
+
 
 //***GET MODEL NUMBER FUNCTION***//
 // Function   : getModelNumber
 //
-// Description: This function retrieves the current LipSync firmware model number.
+// Description: This function retrieves the current device model number.
 //
 // Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
 //                                        The serial printing is ignored if it's set to false.
@@ -1081,7 +1121,7 @@ void getModelNumber(bool responseEnabled, bool apiEnabled, String optionalParame
 //***GET VERSION FUNCTION***//
 // Function   : getVersionNumber
 //
-// Description: This function retrieves the current LipSync firmware version number.
+// Description: This function retrieves the current device firmware version number.
 //
 // Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
 //                                        The serial printing is ignored if it's set to false.

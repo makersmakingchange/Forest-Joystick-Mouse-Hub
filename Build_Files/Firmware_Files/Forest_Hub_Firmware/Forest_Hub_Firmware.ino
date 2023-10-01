@@ -43,10 +43,12 @@
 #define LED_SLOT3         2
 #define LED_GAMEPAD       3
 #define LED_MOUSE         4
+#define LED_DEFAULT_BRIGHTNESS 50
 
 
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
+#define DEFAULT_MODE MODE_GAMEPAD
 
 #define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
@@ -88,7 +90,9 @@ int modelNumber;
 int versionNumber;
 int deadzoneLevel;
 int cursorSpeedLevel; // 1-10 cursor speed levels
-int operatingMode = MODE_GAMEPAD;   // 1 = Mouse mode, 0 = Joystick Mode 
+int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
+
+
 
 FlashStorage(isConfiguredFlash, int);
 FlashStorage(deviceNumberFlash,int);
@@ -287,10 +291,12 @@ void initMemory() {
 
   if (isConfigured == 0) {
     //Define default settings if it's first time running the code
-    modelNumber = 0;
-    versionNumber = 2;
-    deadzoneLevel = 6;
-    cursorSpeedLevel = 5;
+    modelNumber = JOYSTICK_MODEL;
+    deviceNumber = JOYSTICK_DEVICE;
+    versionNumber = JOYSTICK_VERSION;
+    deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
+    cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;
+    operatingMode = DEFAULT_MODE;
     isConfigured = 1;
 
     //Write default settings to flash storage

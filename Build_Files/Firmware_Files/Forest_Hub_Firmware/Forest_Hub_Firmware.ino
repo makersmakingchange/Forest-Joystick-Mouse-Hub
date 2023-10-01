@@ -62,7 +62,6 @@
 #define MOUSE_MAX_CURSOR_SPEED_LEVEL         10             //Maxium cursor speed level
 #define MOUSE_MIN_CURSOR_SPEED_VALUE         1              //Minimum cursor speed value [pixels per update]
 #define MOUSE_MAX_CURSOR_SPEED_VALUE         10
-#define MOUSE_MAX_XY                         6            // Amount to move mouse at max deflection (max "speed") [pixels]
 
 #define JOYSTICK_REACTION_TIME               30             //Minimum time between each action in ms
 #define SWITCH_REACTION_TIME                 100            //Minimum time between each switch action in ms

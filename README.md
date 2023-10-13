@@ -63,7 +63,7 @@ Reference the Assembly Guide section in the [Maker Guide](/Documentation/Forest_
 |----------------------|---------|------|
 | Design Rationale     | 1.0     | [Forest_Hub_Design_Rationale](/Documentation/Forest_Hub_Design_Rationale.pdf)     |
 | Maker Guide          | 1.0     | [Forest_Hub_Maker_Guide](/Documentation/Forest_Hub_Maker_Guide.pdf)     |
-| Bill of Materials    | 1.0     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
+| Bill of Materials    | 1.01     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
 | User Guide           | 1.0     | [Forest_Hub_User_Guide](/Documentation/Forest_Hub_User_Guide.pdf)    |
 | Changelog            | 1.0     | [Changes](Changes.txt)     |
 

@@ -63,7 +63,7 @@ Reference the Assembly Guide section in the [Maker Guide](/Documentation/Forest_
 |----------------------|---------|------|
 | Design Rationale     | 1.0     | [Forest_Hub_Design_Rationale](/Documentation/Forest_Hub_Design_Rationale.pdf)     |
 | Maker Guide          | 1.0     | [Forest_Hub_Maker_Guide](/Documentation/Forest_Hub_Maker_Guide.pdf)     |
-| Bill of Materials    | 1.0     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
+| Bill of Materials    | 1.01     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
 | User Guide           | 1.0     | [Forest_Hub_User_Guide](/Documentation/Forest_Hub_User_Guide.pdf)    |
 | Changelog            | 1.0     | [Changes](Changes.txt)     |
 
@@ -91,6 +91,8 @@ Please see the CERN-OHL-W v2 for applicable conditions.
 
 Source Location: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub
 
+<img src="LICENSES/oshw_licenses.png" alt="List of open source licenses. Hardware: CERN-OHL-W-2.0, Software: GPL-3.0-or-later, Documentation: CC-BY-SA-4.0.">
+
 ## Attribution
 
 The [Adafruit QT Py](http://www.adafruit.com/products/4600) development board was designed by Limor Fried/Ladyada from Adafruit. The PCB design is [available open source](https://github.com/adafruit/Adafruit-QT-Py-PCB) under a CC-BY-SA license.
@@ -105,6 +107,12 @@ The concept for the Forest Hub was based on the [Enabled Controller Mini](https:
 - Stephen Moyer, Neil Squire Society. Concept generation.
 - Tyler Fentie, Neil Squire Society. Concept generation
 
+
+## Open Source Hardware Certification
+
+The Forest Hub has been certified as open source hardware by the Open Source Hardware Association under the OSHWA UID [CA000033](https://certification.oshwa.org/ca000033.html).
+
+<img src="oshw/oshw-certification-mark-wide-v2.6.png" alt="Open Source Hardware Certification Mark for Forest Hub: CA000033">
 ---
 
 ## About Makers Making Change

@@ -91,6 +91,7 @@ int versionNumber;
 int deadzoneLevel;
 int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
+int currentSlot;      // Slots numbered 1-3 with different settings
 int ledBrightness;
 
 
@@ -174,6 +175,21 @@ typedef struct {
   uint8_t switchButtonNumber;
 } switchStruct;
 
+// Slot structure
+typedef struct {
+  uint8_t slotNumber;
+  uint8_t slotLEDNumber;
+  String mouseSlotName;
+  int slotCursorSpeedLevel;
+  String gamepadSlotName;
+} slotStruct; 
+/*
+ * To add to Slot Structure later:
+ * - mouse acceleration
+ * - mouse switch functions (so these can be remapped)
+ * - gamepad switch functions
+ * - deadzone??
+ */
 
 // Declare individual API functions with command, parameter, and corresponding function
 _functionList getDeviceNumberFunction =           {"DN", "0", "0", &getDeviceNumber};

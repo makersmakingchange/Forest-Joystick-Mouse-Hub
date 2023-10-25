@@ -90,6 +90,7 @@ FlashStorage(modelNumberFlash, int);
 FlashStorage(versionNumberFlash, int);
 FlashStorage(deadzoneLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
+FlashStorage(currentSlotFlash,int);  // Track index of current settings slot
 
 long lastInteractionUpdate;
 

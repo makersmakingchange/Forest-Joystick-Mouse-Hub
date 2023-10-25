@@ -103,6 +103,7 @@ FlashStorage(deadzoneLevelFlash, int);
 FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
+FlashStorage(currentSlotFlash,int);  // Track index of current settings slot
 
 long lastInteractionUpdate;
 

@@ -2,7 +2,7 @@
   File: OpenAT_Joystick_Software.ino
   Software: OpenAT Joystick Plus 4 Switches, with both USB gamepad and mouse funtionality.
   Developed by: Makers Making Change
-  Version: (25 September 2023)
+  Version: (25 October 2023)
   License: GPL v3
 
   Copyright (C) 2023 Neil Squire Society
@@ -49,6 +49,8 @@
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
 #define DEFAULT_MODE MODE_GAMEPAD
+
+#define DEFAULT_SLOT 1
 
 #define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
@@ -181,12 +183,12 @@ typedef struct {
   uint8_t slotLEDNumber;
   String mouseSlotName;
   int slotCursorSpeedLevel;
-  String gamepadSlotName;
 } slotStruct; 
 /*
  * To add to Slot Structure later:
  * - mouse acceleration
  * - mouse switch functions (so these can be remapped)
+ * - gamepad slot name
  * - gamepad switch functions
  * - deadzone??
  */
@@ -222,6 +224,13 @@ const switchStruct switchProperty[] {
 
 };
 
+//Slot properties                   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPEDNING IF INIT OR NO
+slotStruct slotProperties[] {
+  {1, LED_SLOT1, "Slow",    1},
+  {2, LED_SLOT2, "Default", 5},
+  {3, LED_SLOT3, "Fast",   10}
+};
+
 Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL);  // Create a pixel strand with 1 pixel on QtPy
 Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 
@@ -235,6 +244,9 @@ Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 // Return     : void
 //*********************************//
 void setup() {
+    // Begin serial
+  Serial.begin(115200);
+    
     // Initialize Memory
   initMemory();
   delay(FLASH_DELAY_TIME);
@@ -264,9 +276,6 @@ void setup() {
   // Initialize Joystick
   initJoystick();
 
-  // Begin serial
-  Serial.begin(115200);
-
   //Initialize the switch pins as inputs
   pinMode(PIN_SW_S1, INPUT_PULLUP);
   pinMode(PIN_SW_S2, INPUT_PULLUP);
@@ -286,7 +295,7 @@ void setup() {
     case MODE_MOUSE:
       pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
       pixels.show();
-      leds.setPixelColor(LED_MOUSE,pixels.Color(255,255,0));// Turn LED yellow
+      leds.setPixelColor(LED_MOUSE, pixels.Color(255,255,0));// Turn LED yellow
       leds.show();
       break;
     case MODE_GAMEPAD:
@@ -321,6 +330,11 @@ void loop() {
         switchesJoystickActions();
         break;
     }
+
+    // mode change function
+
+    // calibration function
+    
   }
 }
 
@@ -350,6 +364,7 @@ void initMemory() {
     deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
     cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;
     operatingMode = DEFAULT_MODE;
+    currentSlot = DEFAULT_SLOT;
     ledBrightness = LED_DEFAULT_BRIGHTNESS;
     isConfigured = 1;
 
@@ -359,6 +374,7 @@ void initMemory() {
     deadzoneLevelFlash.write(deadzoneLevel);
     cursorSpeedLevelFlash.write(cursorSpeedLevel);
     operatingModeFlash.write(operatingMode);
+    currentSlotFlash.write(currentSlot);
     ledBrightnessFlash.write(ledBrightness);
 
     isConfiguredFlash.write(isConfigured);
@@ -371,6 +387,7 @@ void initMemory() {
     deadzoneLevel = deadzoneLevelFlash.read();
     cursorSpeedLevel = cursorSpeedLevelFlash.read();
     operatingMode = operatingModeFlash.read();
+    currentSlot = currentSlotFlash.read();
     ledBrightness = ledBrightnessFlash.read();
     delay(FLASH_DELAY_TIME);
   }
@@ -384,6 +401,9 @@ void initMemory() {
 
   Serial.print("Operating Mode: ");
   Serial.println(operatingMode);
+
+  Serial.print("Current Slot: ");
+  Serial.println(currentSlot);
 
   Serial.print("Deadzone Level: ");
   Serial.println(deadzoneLevel);

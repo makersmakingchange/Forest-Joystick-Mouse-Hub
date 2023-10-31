@@ -18,12 +18,12 @@
 #include "XACGamepad.h"
 #include "OpenAT_Joystick_Response.h"
 #include <FlashStorage.h> // Non-volatile memory for storing settings
-#include <TinyUSB_Mouse_and_Keyboard.h> // Convenience library for 
+#include <TinyUSB_Mouse_and_Keyboard.h> // Library to allow mouse and keyboard to work using TinyUSB
 #include <WiiChuck.h> //Nunchuck communication
 #include <Adafruit_NeoPixel.h> //Lights on QtPy
 
 
-#define USB_DEBUG  0 // Set this to 0 for best performance.
+#define USB_DEBUG  1 // Set this to 0 for best performance.
 
 // ==================== Pin Assignment =================
 
@@ -38,22 +38,24 @@
 #define PIN_BUZZER        A8 //SCK
 
 
-#define LED_SLOT1         0
+#define LED_SLOT1         2
 #define LED_SLOT2         1
-#define LED_SLOT3         2
-#define LED_GAMEPAD       3
-#define LED_MOUSE         4
+#define LED_SLOT3         0
+#define LED_GAMEPAD       4
+#define LED_MOUSE         3
 #define LED_DEFAULT_BRIGHTNESS 50
 
 
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
-#define DEFAULT_MODE MODE_GAMEPAD
+#define DEFAULT_MODE MODE_MOUSE
 
 #define DEFAULT_SLOT 1
 
 #define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
+
+#define LONG_PRESS_MILLIS  3000 // time, in milliseconds, for a mode change to occur
 
 #define JOYSTICK_DEFAULT_DEADZONE_LEVEL      1              //Joystick deadzone
 #define JOYSTICK_MIN_DEADZONE_LEVEL          1
@@ -109,6 +111,7 @@ FlashStorage(ledBrightnessFlash,int);
 FlashStorage(currentSlotFlash,int);  // Track index of current settings slot
 
 long lastInteractionUpdate;
+long mPressStartMillis = 0;
 
 //Declare joystick input and output variables
 int inputX;
@@ -117,22 +120,24 @@ int outputX;
 int outputY;
 
 //Declare switch state variables for each switch
-bool switchS1State;           // Mouse mode = left click
-bool switchS2State;           // Mouse mode = scroll mode
-bool switchS3State;           // Mouse mode = right click
-bool switchS4State;           // Mouse mode = middle click
-bool switchSMState;
-bool buttonCState;
-bool buttonMState;
+bool switchS1Pressed;           // Mouse mode = left click
+bool switchS2Pressed;           // Mouse mode = scroll mode
+bool switchS3Pressed;           // Mouse mode = right click
+bool switchS4Pressed;           // Mouse mode = middle click
+bool switchSMPressed;
+bool buttonCPressed;
+bool buttonMPressed;
+
+bool isModeChanging;
 
 //Previous status of switches
-bool switchS1PrevState = HIGH;
-bool switchS2PrevState = HIGH;
-bool switchS3PrevState = HIGH;
-bool switchS4PrevState = HIGH;
-bool switchSMPrevState = HIGH;
-bool buttonCPrevState  = HIGH;
-bool buttonMPrevState  = HIGH;
+bool switchS1PrevPressed = false;
+bool switchS2PrevPressed = false;
+bool switchS3PrevPressed = false;
+bool switchS4PrevPressed = false;
+bool switchSMPrevPressed = false;
+bool buttonCPrevPressed  = false;
+bool buttonMPrevPressed  = false;
 
 // Magic numbers for multi-button analog resistor network.
 // SM_Switch - Mode Switch - Calib Switch
@@ -288,24 +293,26 @@ void setup() {
   delay(STARTUP_DELAY_TIME);
 
  
-
-
   // Turn on indicator light, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
       pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
       pixels.show();
-      leds.setPixelColor(LED_MOUSE, pixels.Color(255,255,0));// Turn LED yellow
+      leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
       leds.show();
       break;
     case MODE_GAMEPAD:
       pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Turn LED blue
       pixels.show();
-      leds.setPixelColor(LED_GAMEPAD, pixels.Color(0, 0, 255)); // Turn LED blue
+      leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
       leds.show();
       break;
   }
 
+  // Turn on indicator light for current slot
+  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(255, 0, 0)); // Turn Slot LED red
+  leds.show();
+  
   lastInteractionUpdate = millis();  // get first timestamp
 
 }
@@ -322,14 +329,7 @@ void loop() {
 
     joystickActions();
 
-    switch (operatingMode) {
-      case MODE_MOUSE:
-        switchesMouseActions();
-        break;
-      case MODE_GAMEPAD:
-        switchesJoystickActions();
-        break;
-    }
+    switchesActions();
 
     // mode change function
 
@@ -362,17 +362,19 @@ void initMemory() {
     deviceNumber = JOYSTICK_DEVICE;
     versionNumber = JOYSTICK_VERSION;
     deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
-    cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;
+    //cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    //Load each slot cursor speed level here
     operatingMode = DEFAULT_MODE;
     currentSlot = DEFAULT_SLOT;
     ledBrightness = LED_DEFAULT_BRIGHTNESS;
     isConfigured = 1;
+    
+    cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel;  
 
     //Write default settings to flash storage
     modelNumberFlash.write(modelNumber);
     versionNumberFlash.write(versionNumber);
     deadzoneLevelFlash.write(deadzoneLevel);
-    cursorSpeedLevelFlash.write(cursorSpeedLevel);
+    cursorSpeedLevelFlash.write(cursorSpeedLevel);          //Save each slot cursor speed level here
     operatingModeFlash.write(operatingMode);
     currentSlotFlash.write(currentSlot);
     ledBrightnessFlash.write(ledBrightness);
@@ -385,12 +387,15 @@ void initMemory() {
     modelNumber = modelNumberFlash.read();
     versionNumber = versionNumberFlash.read();
     deadzoneLevel = deadzoneLevelFlash.read();
-    cursorSpeedLevel = cursorSpeedLevelFlash.read();
+    //cursorSpeedLevel = cursorSpeedLevelFlash.read();
     operatingMode = operatingModeFlash.read();
     currentSlot = currentSlotFlash.read();
+    cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
     delay(FLASH_DELAY_TIME);
   }
+
+  updateCursorSpeed(cursorSpeedLevel);
 
   //Serial print settings
   Serial.print("Model Number: ");
@@ -498,72 +503,96 @@ void joystickActions() {
 
 void readSwitches() {
   // Update Prev Switch States
-  switchS1PrevState = switchS1State;
-  switchS2PrevState = switchS2State;
-  switchS3PrevState = switchS3State;
-  switchS4PrevState = switchS4State;
-  switchSMPrevState = switchSMState;
-  buttonCPrevState  = buttonCState;
-  buttonMPrevState  = buttonMState;
+  switchS1PrevPressed = switchS1Pressed;
+  switchS2PrevPressed = switchS2Pressed;
+  switchS3PrevPressed = switchS3Pressed;
+  switchS4PrevPressed = switchS4Pressed;
+  switchSMPrevPressed = switchSMPressed;
+  buttonCPrevPressed  = buttonCPressed;
+  buttonMPrevPressed  = buttonMPressed;
 
   //Update status of switch inputs
-  switchS1State = digitalRead(PIN_SW_S1);
-  switchS2State = digitalRead(PIN_SW_S2);
-  switchS3State = digitalRead(PIN_SW_S3);
-  switchS4State = digitalRead(PIN_SW_S4);
+  switchS1Pressed = !digitalRead(PIN_SW_S1);
+  switchS2Pressed = !digitalRead(PIN_SW_S2); 
+  switchS3Pressed = !digitalRead(PIN_SW_S3); 
+  switchS4Pressed = !digitalRead(PIN_SW_S4); 
 
   int buttonState   = analogRead(PIN_BUTTON); // read the button array
 
-   if (buttonState < t111)
- {
-  switchSMState = true;
-  buttonMState = true;
-  buttonCState = true;
- }
- else if (buttonState < t110)
- {
-  switchSMState = true;
-  buttonMState = true;
-  buttonCState = false;
- }
- else if (buttonState < t101)
+  if (buttonState < t111)
   {
-  switchSMState = true;
-  buttonMState = false;
-  buttonCState = true;
- }
- else if (buttonState < t100)
+  switchSMPressed = true;
+  buttonMPressed = true;
+  buttonCPressed = true;
+  }
+  else if (buttonState < t110)
   {
-  switchSMState = true;
-  buttonMState = false;
-  buttonCState = false;
- }
+    switchSMPressed = true;
+    buttonMPressed = true;
+    buttonCPressed = false;
+  }
+  else if (buttonState < t101)
+  {
+    switchSMPressed = true;
+    buttonMPressed = false;
+    buttonCPressed = true;
+  }
+  else if (buttonState < t100)
+  {
+    switchSMPressed = true;
+    buttonMPressed = false;
+    buttonCPressed = false;
+  }
   else if (buttonState < t011)
   {
-  switchSMState = false;
-  buttonMState = true;
-  buttonCState = true;
- }
+    switchSMPressed = false;
+    buttonMPressed = true;
+    buttonCPressed = true;
+  }
   else if (buttonState < t010)
   {
-  switchSMState = false;
-  buttonMState = true;
-  buttonCState = false;
- }
+    switchSMPressed = false;
+    buttonMPressed = true;
+    buttonCPressed = false;
+  }
   else if (buttonState < t001)
   {
-  switchSMState = false;
-  buttonMState = false;
-  buttonCState = true;
- }
+    switchSMPressed = false;
+    buttonMPressed = false;
+    buttonCPressed = true;
+  }
   else 
   {
-  switchSMState = false;
-  buttonMState = false;
-  buttonCState = false;
- }
+    switchSMPressed = false;
+    buttonMPressed = false;
+    buttonCPressed = false;
+  }
 
+}
 
+//***ALL SWITCH ACTIONS FUNCTION**//
+// Function   : switchesActions
+//
+// Description: This function executes the functions of the switches.
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+void switchesActions(){
+        
+    switch (operatingMode) {
+      case MODE_MOUSE:
+        switchesMouseActions();
+        break;
+      case MODE_GAMEPAD:
+        switchesJoystickActions();
+        break;
+    }
+
+    
+    slotModeChange();
+    
 }
 
 //***JOYSTICK MODE - SWITCH ACTIONS FUNCTION**//
@@ -579,28 +608,28 @@ void readSwitches() {
 void switchesJoystickActions() {
 
   //Perform button actions
-  if (!switchS1State) {
+  if (switchS1Pressed) {
     gamepadButtonPress(switchProperty[0].switchButtonNumber);
   }
-  else if (switchS1State && !switchS1PrevState) {
+  else if (!switchS1Pressed && switchS1PrevPressed) {
     gamepadButtonRelease(switchProperty[0].switchButtonNumber);
   }
 
-  if (!switchS2State) {
+  if (switchS2Pressed) {
     gamepadButtonPress(switchProperty[1].switchButtonNumber);
-  } else if (switchS2State && !switchS2PrevState) {
+  } else if (!switchS2Pressed && switchS2PrevPressed) {
     gamepadButtonRelease(switchProperty[1].switchButtonNumber);
   }
 
-  if (!switchS3State) {
+  if (switchS3Pressed) {
     gamepadButtonPress(switchProperty[2].switchButtonNumber);
-  } else if (switchS3State && !switchS3PrevState) {
+  } else if (!switchS3Pressed && switchS3PrevPressed) {
     gamepadButtonRelease(switchProperty[2].switchButtonNumber);
   }
 
-  if (!switchS4State) {
+  if (switchS4Pressed) {
     gamepadButtonPress(switchProperty[3].switchButtonNumber);
-  } else if (switchS4State && !switchS4PrevState) {
+  } else if (!switchS4Pressed && switchS4PrevPressed) {
     gamepadButtonRelease(switchProperty[3].switchButtonNumber);
   }
 
@@ -637,28 +666,28 @@ void initMouse()
 void switchesMouseActions() {
 
   //Perform button actions
-  if (!switchS1State) {
+  if (switchS1Pressed) {
     Mouse.press(MOUSE_LEFT);
   }
-  else if (switchS1State && !switchS1PrevState) {
+  else if (!switchS1Pressed && switchS1PrevPressed) {
     Mouse.release(MOUSE_LEFT);
   }
 
-  if (!switchS2State) {
+  if (switchS2Pressed) {
     Mouse.press(MOUSE_MIDDLE);
-  } else if (switchS2State && !switchS2PrevState) {
+  } else if (!switchS2Pressed && switchS2PrevPressed) {
     Mouse.release(MOUSE_MIDDLE);
   }
 
-  if (!switchS3State) {
+  if (switchS3Pressed) {
     Mouse.press(MOUSE_RIGHT);
-  } else if (switchS3State && !switchS3PrevState) {
+  } else if (!switchS3Pressed && switchS3PrevPressed) {
     Mouse.release(MOUSE_RIGHT);
   }
 
-  if (!switchS4State) {
+  if (switchS4Pressed) {
     int counter = 0;
-    while (!switchS4State) {
+    while (switchS4Pressed) {
 
       readJoystick();
       readSwitches();
@@ -688,6 +717,96 @@ void switchesMouseActions() {
   }
 }
 
+//***SLOT AND MODE CHANGE FUNCTION**//
+// Function   : slotModeChange
+//
+// Description: This function checks the mode button and switch to determine if a slot change or mode change should take place. 
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+
+void slotModeChange() {
+  
+  
+  if (switchSMPressed || buttonMPressed){
+   
+    if (!switchSMPrevPressed && !buttonMPrevPressed){ 
+      // button pressed for the first time
+      isModeChanging = false;
+      mPressStartMillis = millis();
+    }
+  
+    if ((millis()-mPressStartMillis)>= LONG_PRESS_MILLIS){
+      modeChange();
+      isModeChanging = true;
+    } else{
+      isModeChanging = false;
+    }
+
+  } else if (switchSMPrevPressed || buttonMPrevPressed){
+    // button released
+    if (!isModeChanging){
+      // a mode change is not occuring, therefore it was a short press -> change slots
+      slotChange();
+    }
+  }
+  
+}
+
+//***MODE CHANGE FUNCTION**//
+// Function   : modeChange
+//
+// Description: This function changes the output mode to either gamepad or mouse.
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+
+void modeChange(){
+  // check what mode was
+  // change mode
+
+  // write current mode to flash
+  // load slot settings that correspond to mode
+  // perform solftware reset
+}
+
+//***SLOT CHANGE FUNCTION**//
+// Function   : slotChange
+//
+// Description: This function changes the current slot to the next and loads all settings.
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+
+void slotChange(){
+  // Turn off previous slot LED
+  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 0, 0));
+
+  // increase slot by 1 (if slot 3 go to 1)
+  currentSlot++;
+  if (currentSlot == 4){
+    currentSlot = 1;
+  }
+
+  // Turn on indicator light for current slot
+  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(255, 0, 0)); // Turn Slot LED red
+  leds.show();
+  
+  // load corresponding slot settings
+  cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel; 
+  updateCursorSpeed(cursorSpeedLevel);
+
+  // write current slot to flash
+  currentSlotFlash.write(currentSlot);
+  delay(FLASH_DELAY_TIME);
+}
+
 //***CHECK SETUP MODE FUNCTION**//
 // Function   : checkSetupMode
 //
@@ -701,14 +820,14 @@ void switchesMouseActions() {
 void checkSetupMode() {
 
   //Update status of switch inputs
-  switchS1State = digitalRead(PIN_SW_S1);
-  switchS2State = digitalRead(PIN_SW_S2);
-  switchS3State = digitalRead(PIN_SW_S3);
-  switchS4State = digitalRead(PIN_SW_S4);
+  switchS1Pressed = !digitalRead(PIN_SW_S1);
+  switchS2Pressed = !digitalRead(PIN_SW_S2);
+  switchS3Pressed = !digitalRead(PIN_SW_S3);
+  switchS4Pressed = !digitalRead(PIN_SW_S4);
 
   int mode = 0;
 
-  if (!switchS1State && !switchS2State) {
+  if (switchS1Pressed && switchS2Pressed) {
     Serial.println("Mode selection: Press Button SW1 to Switch Mode, Button SW2 to Confirm selection");
     pixels.setPixelColor(0, pixels.Color(0, 255, 0)); //green
     pixels.show();
@@ -738,13 +857,13 @@ void checkSetupMode() {
     boolean continueLoop = true;
 
     while (continueLoop) {
-      switchS1PrevState = switchS1State;
-      switchS2PrevState = switchS2State;
+      switchS1PrevPressed = switchS1Pressed;
+      switchS2PrevPressed = switchS2Pressed;
       
-      switchS1State = digitalRead(PIN_SW_S1);
-      switchS2State = digitalRead(PIN_SW_S2);
+      switchS1Pressed = !digitalRead(PIN_SW_S1);
+      switchS2Pressed = !digitalRead(PIN_SW_S2);
 
-      if (!switchS1State && switchS1PrevState) { // If button 1 pushed, change mode
+      if (switchS1Pressed && !switchS1PrevPressed) { // If button 1 pushed, change mode
         mode += 1;
         if (mode > 1) {
           mode = 0;
@@ -765,7 +884,7 @@ void checkSetupMode() {
         }
       }
 
-      if (!switchS2State && switchS2PrevState) { // If button 2 pushed, exit loop
+      if (switchS2Pressed && !switchS2PrevPressed) { // If button 2 pushed, exit loop
         continueLoop = false;
       }
 

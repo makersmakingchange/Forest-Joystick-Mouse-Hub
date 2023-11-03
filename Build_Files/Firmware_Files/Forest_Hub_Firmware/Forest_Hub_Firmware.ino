@@ -50,7 +50,7 @@
 #define MODE_GAMEPAD 0
 #define DEFAULT_MODE MODE_MOUSE
 
-#define DEFAULT_SLOT 1
+#define DEFAULT_SLOT 2
 
 #define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
@@ -310,7 +310,7 @@ void setup() {
   }
 
   // Turn on indicator light for current slot
-  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(255, 0, 0)); // Turn Slot LED red
+  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
   leds.show();
   
   lastInteractionUpdate = millis();  // get first timestamp
@@ -825,7 +825,7 @@ void slotChange(){
   }
 
   // Turn on indicator light for current slot
-  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(255, 0, 0)); // Turn Slot LED red
+  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
   leds.show();
   
   slotLoad();

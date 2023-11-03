@@ -27,8 +27,8 @@
 
 // ==================== Pin Assignment =================
 
-#define PIN_JOYSTICK_X    A0
-#define PIN_JOYSTICK_Y    A1
+#define PIN_JOYSTICK_X    A1
+#define PIN_JOYSTICK_Y    A0
 #define PIN_SW_S1         A2
 #define PIN_SW_S2         A3
 #define PIN_SW_S3         A6 //TX
@@ -57,7 +57,7 @@
 
 #define LONG_PRESS_MILLIS  3000 // time, in milliseconds, for a mode change to occur
 
-#define JOYSTICK_DEFAULT_DEADZONE_LEVEL      1              //Joystick deadzone
+#define JOYSTICK_DEFAULT_DEADZONE_LEVEL      2              //Joystick deadzone
 #define JOYSTICK_MIN_DEADZONE_LEVEL          1
 #define JOYSTICK_MAX_DEADZONE_LEVEL          10
 #define JOYSTICK_MAX_DEADZONE_VALUE          64             //Out of 127
@@ -453,6 +453,8 @@ void readJoystick() {
   outputX = map(inputX, 0, 1023, -127, 127);
   outputY = map(inputY, 0, 1023, -127, 127);
 
+  outputY = -outputY;     // To account for backwards Y directions 
+
   double outputMag = calcMag(outputX, outputY);
 
   //Apply radial deadzone *********************************************************************
@@ -687,16 +689,17 @@ void switchesMouseActions() {
 
   if (switchS4Pressed) {
     int counter = 0;
+    //change colour of neopixel to indicate entering scroll mode?
     while (switchS4Pressed) {
 
       readJoystick();
       readSwitches();
 
-      if (outputY > (currentDeadzoneValue)) {
+      if (outputY > 0) {
         Mouse.move(0, 0, 1);                  // Scroll up
         counter++;
       }
-      else if (outputY < -currentDeadzoneValue) {
+      else if (outputY < 0) {
         Mouse.move(0, 0, -1);                 //Scroll down
         counter++;
       } else if (outputY == 0) {
@@ -714,6 +717,9 @@ void switchesMouseActions() {
       }
 
     }
+  } else if (!switchS4Pressed && switchS4PrevPressed) {
+    //action on release
+    //change colour of neopixel to indicate exiting scroll mode?
   }
 }
 
@@ -766,10 +772,34 @@ void slotModeChange() {
 //*********************************//
 
 void modeChange(){
-  // check what mode was
-  // change mode
+  // Change mode
+  operatingMode += 1;
+  if (operatingMode > 1) {
+    operatingMode = 0;
+  }
+
+  // Display corresponding mode LED
+  switch (operatingMode) {
+    case MODE_MOUSE:
+      pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
+      pixels.show();
+      leds.setPixelColor(LED_GAMEPAD, leds.Color(0,0,0)); // Turn off Gamepad LED
+      leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
+      leds.show();
+      break;
+    case MODE_GAMEPAD:
+      pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Turn LED blue
+      pixels.show();
+      leds.setPixelColor(LED_MOUSE, leds.Color(0,0,0)); // Turn off Mouse LED
+      leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
+      leds.show();
+      break;
+  }
 
   // write current mode to flash
+  operatingModeFlash.write(operatingMode);
+  delay(FLASH_DELAY_TIME);
+  
   // load slot settings that correspond to mode
   // perform solftware reset
 }
@@ -798,13 +828,26 @@ void slotChange(){
   leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(255, 0, 0)); // Turn Slot LED red
   leds.show();
   
-  // load corresponding slot settings
-  cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel; 
-  updateCursorSpeed(cursorSpeedLevel);
+  slotLoad();
 
   // write current slot to flash
   currentSlotFlash.write(currentSlot);
   delay(FLASH_DELAY_TIME);
+}
+
+//***SLOT LOAD FUNCTION**//
+// Function   : slotLoad
+//
+// Description: This function laods the settings of the current slot.
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+
+void slotLoad(){
+  cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel; 
+  updateCursorSpeed(cursorSpeedLevel);
 }
 
 //***CHECK SETUP MODE FUNCTION**//

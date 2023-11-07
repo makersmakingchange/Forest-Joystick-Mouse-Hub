@@ -99,7 +99,7 @@ int currentSlot;      // Slots numbered 1-3 with different settings
 int ledBrightness;
 
 
-
+// Variables stored in Flash Memory
 FlashStorage(isConfiguredFlash, int);
 FlashStorage(deviceNumberFlash,int);
 FlashStorage(modelNumberFlash, int);
@@ -110,6 +110,7 @@ FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
 FlashStorage(currentSlotFlash,int);  // Track index of current settings slot
 
+// Timing Variables
 long lastInteractionUpdate;
 long mPressStartMillis = 0;
 
@@ -139,17 +140,17 @@ bool switchSMPrevPressed = false;
 bool buttonCPrevPressed  = false;
 bool buttonMPrevPressed  = false;
 
-// Magic numbers for multi-button analog resistor network.
+// Theoretical voltages for multi-button analog resistor network
 // SM_Switch - Mode Switch - Calib Switch
 // voltages v000 = voltage when off-off-off
-const int v000 = 644;
-const int v001 = 610;
+const int v000 = 643;
+const int v001 = 609;
 const int v010 = 563;
-const int v011 = 513;
-const int v100 = 419;
+const int v011 = 512;
+const int v100 = 418;
 const int v101 = 327;
 const int v110 = 185;
-const int v111 = 1;
+const int v111 = 0;
 const int t001 = (v000+v001)/2;
 const int t010 = (v001+v010)/2;
 const int t011 = (v010+v011)/2;
@@ -514,7 +515,7 @@ void readSwitches() {
   buttonMPrevPressed  = buttonMPressed;
 
   //Update status of switch inputs
-  switchS1Pressed = !digitalRead(PIN_SW_S1);
+  switchS1Pressed = !digitalRead(PIN_SW_S1); // Switches are wired in a pull up, so digital read needs to be inverted
   switchS2Pressed = !digitalRead(PIN_SW_S2); 
   switchS3Pressed = !digitalRead(PIN_SW_S3); 
   switchS4Pressed = !digitalRead(PIN_SW_S4); 

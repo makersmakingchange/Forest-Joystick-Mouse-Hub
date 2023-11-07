@@ -803,6 +803,7 @@ void modeChange(){
   
   // load slot settings that correspond to mode
   // perform solftware reset
+  softwareReset();
 }
 
 //***SLOT CHANGE FUNCTION**//
@@ -1654,9 +1655,21 @@ double calcMag(double x, double y) {
 // Return     : none
 //******************************************//
 void softwareReset() {
-  Mouse.end();
-  gamepad.end();
-  delay(10);
+  switch (operatingMode) {
+    case MODE_GAMEPAD:            // New mode is Gamepad, active mode is Mouse
+      Mouse.release(MOUSE_LEFT);
+      Mouse.release(MOUSE_MIDDLE);
+      Mouse.release(MOUSE_RIGHT);
+      Mouse.end();
+      delay(10);
+      break;
+    case MODE_MOUSE:              // New mode is Mouse, active mode is Gamepad
+      gamepadButtonReleaseAll();
+      gamepad.end();
+      delay(10);
+      break;
+  }
+  
   NVIC_SystemReset();
   delay(10);
 }

@@ -1642,3 +1642,21 @@ double calcMag(double x, double y) {
 
   return magnitude;
 }
+
+
+//***INITIATE SOFTWARE RESET***//
+// Function   : softwareReset
+//
+// Description: This function initiates a software reset.
+//
+// Parameters :  none
+//
+// Return     : none
+//******************************************//
+void softwareReset() {
+  Mouse.end();
+  gamepad.end();
+  delay(10);
+  NVIC_SystemReset();
+  delay(10);
+}

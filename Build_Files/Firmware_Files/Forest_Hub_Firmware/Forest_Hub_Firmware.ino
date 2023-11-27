@@ -52,7 +52,7 @@
 #define MODE_GAMEPAD 0
 #define DEFAULT_MODE MODE_MOUSE
 
-#define DEFAULT_SLOT 2
+#define DEFAULT_SLOT 0
 
 #define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5

@@ -833,8 +833,7 @@ void incrementSlot(){
     newSlotNumber = SLOT_MIN_NUMBER;
   }
 
- 
-  updateSlot(newSlotNumber);
+  setSlotNumber(false,false,newSlotNumber);
 }
 
 //***UPDATE SLOT NUMBER FUNCTION**//

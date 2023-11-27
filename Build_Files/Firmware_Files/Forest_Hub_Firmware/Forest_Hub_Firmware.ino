@@ -650,7 +650,6 @@ void switchesJoystickActions() {
 void initMouse()
 {
   Mouse.begin(); // Initialize USB HID Mouse
-  getMouseCursorSpeed(true,false);        //Get mouse cursor speed stored in memory
 }
 
 

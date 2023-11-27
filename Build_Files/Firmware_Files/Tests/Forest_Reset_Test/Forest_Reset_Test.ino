@@ -1,3 +1,4 @@
+#include "Reset.h"
 #include <Adafruit_NeoPixel.h> //Lights on QtPy
 
 // ==================== Pin Assignment =================
@@ -24,10 +25,13 @@ bool switchSMState;
 bool buttonCState;
 bool buttonMState;
 
-#define BUTTON_CAL_MAX
-#define BUTTON_CAL_MIN
-#define BUTTON_MODE_MAX
-#define BUTTON_MODE_MIN
+bool switchS1PrevState = false;
+bool switchS2PrevState = false;
+bool switchS3PrevState = false;
+bool switchS4PrevState = false;
+bool switchSMPrevState = false;
+bool buttonCPrevState = false;
+bool buttonMPrevState = false;
 
 const int thresholdCount = 7;
 const int t001 = (644+610)/2;
@@ -40,6 +44,9 @@ const int t111 = (185+1)/2;
 const int thresholds[thresholdCount]={t111,t110,t101,t100,t011,t010,t001};
 
 
+unsigned long buttonPressStartTime = 0;
+const unsigned long requiredPressDuration = 2000;
+
 
 void setup() {
   
@@ -49,6 +56,7 @@ void setup() {
   leds.begin();
   leds.setBrightness(ledsBrightness);
   leds.clear();
+  leds.show();
 
     //Initialize the switch pins as inputs
   pinMode(PIN_SW_S1,  INPUT_PULLUP);
@@ -60,7 +68,7 @@ void setup() {
 }
 
 void loop() {
-  
+ 
   switchS1State = !digitalRead(PIN_SW_S1);
   switchS2State = !digitalRead(PIN_SW_S2);
   switchS3State = !digitalRead(PIN_SW_S3);
@@ -118,34 +126,34 @@ void loop() {
  }
  
   
+if (buttonMState == true && buttonMPrevState == false){
+  buttonPressStartTime = millis();
+}
 
-  Serial.print("S1: ");
-  Serial.print(switchS1State);
-  
-  Serial.print("\t S2: ");
-  Serial.print(switchS2State);
+if (buttonMState == true && buttonMPrevState == true){
+  unsigned long elapsedTime = millis() - buttonPressStartTime;
 
-  Serial.print("\t S3: ");
-  Serial.print(switchS3State);
+  if (elapsedTime >= requiredPressDuration) {
+    softwareReset();
+  }
+}
 
-  Serial.print("\t S4: ");
-  Serial.print(switchS4State);
-
-  Serial.print("\t SM: ");
-  Serial.print(buttonState);
-
-  Serial.print("\t SM: ");
-  Serial.print(switchSMState);
-
-  Serial.print("\t M: ");
-  Serial.print(buttonMState);
-
-  Serial.print("\t C: ");
-  Serial.println(buttonCState);
-
+  switchS1PrevState = switchS1State;
+  switchS2PrevState = switchS2State;
+  switchS3PrevState = switchS3State;
+  switchS4PrevState = switchS4State;
+  switchSMPrevState = switchSMState;
+  buttonCPrevState = buttonCState;
+  buttonMPrevState = buttonMState;
   
 
   delay(200);
-  
 
+
+}
+
+void softwareReset(){
+  Serial.println("Intiating software reset...");
+  NVIC_SystemReset();
+  delay(10);
 }

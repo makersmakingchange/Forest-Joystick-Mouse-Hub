@@ -756,7 +756,7 @@ void slotModeChange() {
     // button released
     if (!isModeChanging){
       // a mode change is not occuring, therefore it was a short press -> change slots
-      slotChange();
+      incrementSlot();
     }
   }
   
@@ -806,17 +806,17 @@ void modeChange(){
   softwareReset();
 }
 
-//***SLOT CHANGE FUNCTION**//
-// Function   : slotChange
+//***INCREMENET SLOT FUNCTION**//
+// Function   : incrementSlot
 //
-// Description: This function changes the current slot to the next and loads all settings.
+// Description: This function increments the current slot to the next and loads all settings.
 //
 // Parameters :  Void
 //
 // Return     : Void
 //*********************************//
 
-void slotChange(){
+void incrementSlot(){
   // Turn off previous slot LED
   leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 0, 0));
 

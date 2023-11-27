@@ -38,11 +38,13 @@
 #define PIN_BUZZER        A8 //SCK
 
 
-#define LED_SLOT1         2
-#define LED_SLOT2         1
-#define LED_SLOT3         0
-#define LED_GAMEPAD       4
-#define LED_MOUSE         3
+// 5 Neopixels connected in series
+#define LED_SLOT0         5 // Non-existent Neopixel for no light
+#define LED_SLOT1         2 // Neopixel LED number
+#define LED_SLOT2         1 // Neopixel LED number
+#define LED_SLOT3         0 // Neopixel LED number
+#define LED_GAMEPAD       4 // Neopixel LED number
+#define LED_MOUSE         3 // Neopixel LED number
 #define LED_DEFAULT_BRIGHTNESS 50
 
 
@@ -56,6 +58,11 @@
 #define DEFAULT_DEBOUNCING_TIME 5
 
 #define LONG_PRESS_MILLIS  3000 // time, in milliseconds, for a mode change to occur
+
+#define SLOT_DEFAULT_NUMBER                   0             // Default slot number
+#define SLOT_MIN_NUMBER                       0             // Minimum slot number
+#define SLOT_MAX_NUMBER                       3             // Maxium slot number
+
 
 #define JOYSTICK_DEFAULT_DEADZONE_LEVEL      2              //Joystick deadzone
 #define JOYSTICK_MIN_DEADZONE_LEVEL          1
@@ -95,7 +102,7 @@ int versionNumber;
 int deadzoneLevel;
 int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
-int currentSlot;      // Slots numbered 1-3 with different settings
+int slotNumber;      // Slots numbered 1-3 with different settings
 int ledBrightness;
 
 
@@ -108,7 +115,7 @@ FlashStorage(deadzoneLevelFlash, int);
 FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
-FlashStorage(currentSlotFlash,int);  // Track index of current settings slot
+FlashStorage(slotNumberFlash,int);  // Track index of current settings slot
 
 // Timing Variables
 long lastInteractionUpdate;
@@ -207,18 +214,22 @@ _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickD
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
+_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
+_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
 //_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
 //_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
 
 // Declare array of API functions
-_functionList apiFunction[8] = {
+_functionList apiFunction[10] = {
   getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
   getJoystickDeadZoneFunction,
   setJoystickDeadZoneFunction,
   getMouseCursorSpeedFunction,
-  setMouseCursorSpeedFunction
+  setMouseCursorSpeedFunction,
+  getSlotNumberFunction,
+  setSlotNumberFunction
 };
 
 //Switch properties
@@ -232,12 +243,13 @@ const switchStruct switchProperty[] {
 
 //Slot properties                   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPEDNING IF INIT OR NO
 slotStruct slotProperties[] {
+  {0, LED_SLOT0, "Default", 5}, // slot number, Slot LED Number, Slot name, cursor speed
   {1, LED_SLOT1, "Slow",    1},
-  {2, LED_SLOT2, "Default", 5},
+  {2, LED_SLOT2, "Medium",  5},
   {3, LED_SLOT3, "Fast",   10}
 };
 
-Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL);  // Create a pixel strand with 1 pixel on QtPy
+Adafruit_NeoPixel led_microcontroller(1, PIN_NEOPIXEL);  // Create a pixel strand with 1 pixel on QtPy
 Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 
 //***MICROCONTROLLER AND PERIPHERAL CONFIGURATION***//
@@ -257,11 +269,11 @@ void setup() {
   initMemory();
   delay(FLASH_DELAY_TIME);
   
-  pixels.begin(); // Initiate pixel on microcontroller
-  pixels.clear();
-  pixels.setBrightness(ledBrightness);
-  pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Turn LED red to start
-  pixels.show();
+  led_microcontroller.begin(); // Initiate pixel on microcontroller
+  led_microcontroller.clear();
+  led_microcontroller.setBrightness(ledBrightness);
+  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 0, 0)); // Turn LED red to start
+  led_microcontroller.show();
 
   leds.begin();
   leds.clear();
@@ -297,21 +309,21 @@ void setup() {
   // Turn on indicator light, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
-      pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
-      pixels.show();
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
+      led_microcontroller.show();
       leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
       leds.show();
       break;
     case MODE_GAMEPAD:
-      pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Turn LED blue
-      pixels.show();
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
+      led_microcontroller.show();
       leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
       leds.show();
       break;
   }
 
   // Turn on indicator light for current slot
-  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
+  leds.setPixelColor(slotProperties[slotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
   leds.show();
   
   lastInteractionUpdate = millis();  // get first timestamp
@@ -363,13 +375,13 @@ void initMemory() {
     deviceNumber = JOYSTICK_DEVICE;
     versionNumber = JOYSTICK_VERSION;
     deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
-    //cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    //Load each slot cursor speed level here
     operatingMode = DEFAULT_MODE;
-    currentSlot = DEFAULT_SLOT;
+    slotNumber = DEFAULT_SLOT;
     ledBrightness = LED_DEFAULT_BRIGHTNESS;
     isConfigured = 1;
-    
-    cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel;  
+
+    //cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    //Load each slot cursor speed level here
+    cursorSpeedLevel = slotProperties[slotNumber].slotCursorSpeedLevel;  
 
     //Write default settings to flash storage
     modelNumberFlash.write(modelNumber);
@@ -377,7 +389,7 @@ void initMemory() {
     deadzoneLevelFlash.write(deadzoneLevel);
     cursorSpeedLevelFlash.write(cursorSpeedLevel);          //Save each slot cursor speed level here
     operatingModeFlash.write(operatingMode);
-    currentSlotFlash.write(currentSlot);
+    slotNumberFlash.write(slotNumber);
     ledBrightnessFlash.write(ledBrightness);
 
     isConfiguredFlash.write(isConfigured);
@@ -387,16 +399,16 @@ void initMemory() {
     //Load settings from flash storage
     modelNumber = modelNumberFlash.read();
     versionNumber = versionNumberFlash.read();
-    deadzoneLevel = deadzoneLevelFlash.read();
-    //cursorSpeedLevel = cursorSpeedLevelFlash.read();
+    deadzoneLevel = deadzoneLevelFlash.read(); 
     operatingMode = operatingModeFlash.read();
-    currentSlot = currentSlotFlash.read();
-    cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel;  
+    slotNumber = slotNumberFlash.read();
+    //cursorSpeedLevel = cursorSpeedLevelFlash.read();
+    cursorSpeedLevel = slotProperties[slotNumber].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
     delay(FLASH_DELAY_TIME);
   }
 
-  updateCursorSpeed(cursorSpeedLevel);
+  updateSlot(slotNumber);
 
   //Serial print settings
   Serial.print("Model Number: ");
@@ -409,7 +421,7 @@ void initMemory() {
   Serial.println(operatingMode);
 
   Serial.print("Current Slot: ");
-  Serial.println(currentSlot);
+  Serial.println(slotNumber);
 
   Serial.print("Deadzone Level: ");
   Serial.println(deadzoneLevel);
@@ -781,15 +793,15 @@ void modeChange(){
   // Display corresponding mode LED
   switch (operatingMode) {
     case MODE_MOUSE:
-      pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
-      pixels.show();
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
+      led_microcontroller.show();
       leds.setPixelColor(LED_GAMEPAD, leds.Color(0,0,0)); // Turn off Gamepad LED
       leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
       leds.show();
       break;
     case MODE_GAMEPAD:
-      pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Turn LED blue
-      pixels.show();
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
+      led_microcontroller.show();
       leds.setPixelColor(LED_MOUSE, leds.Color(0,0,0)); // Turn off Mouse LED
       leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
       leds.show();
@@ -805,7 +817,7 @@ void modeChange(){
   softwareReset();
 }
 
-//***INCREMENET SLOT FUNCTION**//
+//***INCREMENT SLOT FUNCTION**//
 // Function   : incrementSlot
 //
 // Description: This function increments the current slot to the next and loads all settings.
@@ -816,39 +828,46 @@ void modeChange(){
 //*********************************//
 
 void incrementSlot(){
-  // Turn off previous slot LED
-  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 0, 0));
 
   // increase slot by 1 (if slot 3 go to 1)
-  currentSlot++;
-  if (currentSlot == 4){
-    currentSlot = 1;
+ 
+  int newSlotNumber = slotNumber+1;
+
+  if (newSlotNumber == SLOT_MAX_NUMBER+1){
+    newSlotNumber = SLOT_MIN_NUMBER;
   }
 
-  // Turn on indicator light for current slot
-  leds.setPixelColor(slotProperties[currentSlot-1].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
-  leds.show();
-  
-  slotLoad();
-
-  // write current slot to flash
-  currentSlotFlash.write(currentSlot);
-  delay(FLASH_DELAY_TIME);
+ 
+  updateSlot(newSlotNumber);
 }
 
-//***SLOT LOAD FUNCTION**//
-// Function   : slotLoad
+//***UPDATE SLOT NUMBER FUNCTION**//
+// Function   : updateSlot
 //
-// Description: This function laods the settings of the current slot.
+// Description: This function loads the settings of the current slot.
 //
-// Parameters :  Void
+// Parameters :  int tempSlotNumber
 //
 // Return     : Void
 //*********************************//
 
-void slotLoad(){
-  cursorSpeedLevel = slotProperties[currentSlot-1].slotCursorSpeedLevel; 
-  updateCursorSpeed(cursorSpeedLevel);
+void updateSlot(int newSlotNumber){
+
+
+  // Update cursor speed    
+  cursorSpeedLevel = slotProperties[slotNumber].slotCursorSpeedLevel; 
+  updateCursorSpeed(cursorSpeedLevel);  
+    
+  // Update LEDs
+      // Turn off previous slot LED
+  leds.setPixelColor(slotProperties[slotNumber].slotLEDNumber, leds.Color(0, 0, 0));
+    // Turn on indicator light for current slot
+  leds.setPixelColor(slotProperties[newSlotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
+  leds.show();
+
+  //Update global variable.
+  slotNumber = newSlotNumber;
+ 
 }
 
 //***CHECK SETUP MODE FUNCTION**//
@@ -873,25 +892,25 @@ void checkSetupMode() {
 
   if (switchS1Pressed && switchS2Pressed) {
     Serial.println("Mode selection: Press Button SW1 to Switch Mode, Button SW2 to Confirm selection");
-    pixels.setPixelColor(0, pixels.Color(0, 255, 0)); //green
-    pixels.show();
+    led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 255, 0)); //green
+    led_microcontroller.show();
     delay(3000);
-    pixels.clear();
-    pixels.show(); //turn off LEDs
+    led_microcontroller.clear();
+    led_microcontroller.show(); //turn off LEDs
 
     switch (mode) {
       case MODE_MOUSE:
-        pixels.setPixelColor(0, pixels.Color(255, 255, 0)); //yellow
-        pixels.show();
-        leds.setPixelColor(LED_MOUSE,pixels.Color(255,255,0)); //yellow
-        leds.setPixelColor(LED_GAMEPAD,pixels.Color(0,0,0)); //off
+        led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); //yellow
+        led_microcontroller.show();
+        leds.setPixelColor(LED_MOUSE,led_microcontroller.Color(255,255,0)); //yellow
+        leds.setPixelColor(LED_GAMEPAD,led_microcontroller.Color(0,0,0)); //off
         leds.show();
         break;
       case MODE_GAMEPAD:
-        pixels.setPixelColor(0, pixels.Color(0, 0, 255)); //blue
-        pixels.show();
-        leds.setPixelColor(LED_GAMEPAD, pixels.Color(0, 0, 255)); //blue
-        leds.setPixelColor(LED_MOUSE, pixels.Color(0, 0, 0)); //off
+        led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); //blue
+        led_microcontroller.show();
+        leds.setPixelColor(LED_GAMEPAD, led_microcontroller.Color(0, 0, 255)); //blue
+        leds.setPixelColor(LED_MOUSE, led_microcontroller.Color(0, 0, 0)); //off
         leds.show();
         break;
       default:
@@ -915,13 +934,13 @@ void checkSetupMode() {
         switch (mode) { //Update color
           case MODE_MOUSE:
             Serial.println("Mouse mode selected.");
-            pixels.setPixelColor(0, pixels.Color(255, 255, 0)); //yellow
-            pixels.show();
+            led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); //yellow
+            led_microcontroller.show();
             break;
           case MODE_GAMEPAD:
             Serial.println("Gamepad mode selected.");
-            pixels.setPixelColor(0, pixels.Color(0, 0, 255)); //blue
-            pixels.show();
+            led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); //blue
+            led_microcontroller.show();
             break;
           default:
             break;
@@ -949,17 +968,17 @@ void checkSetupMode() {
     while (1) { //Blink operating mode color until reset
       switch (mode) {
         case MODE_MOUSE:
-          pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Turn LED yellow
-          pixels.show();
+          led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
+          led_microcontroller.show();
           break;
         case MODE_GAMEPAD:
-          pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Turn LED blue
-          pixels.show();
+          led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
+          led_microcontroller.show();
           break;
       }
       delay(1000);
-      pixels.clear();
-      pixels.show();
+      led_microcontroller.clear();
+      led_microcontroller.show();
       delay(1000);
     }
     //resetJoystick();  //call reset regardless, as too much time has elapsed to enable USB
@@ -1456,6 +1475,93 @@ void getVersionNumber(bool responseEnabled, bool apiEnabled, String optionalPara
     getVersionNumber(responseEnabled, apiEnabled);
   }
 }
+
+//*** GET SLOT NUMBER FUNCTION***//
+/// Function   : getSlotNumber
+//
+// Description: This function retrieves the slot number.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+int getSlotNumber(bool responseEnabled, bool apiEnabled) {
+  String slotNumberCommand = "SN";
+  int tempSlotNumber;
+  tempSlotNumber = slotNumberFlash.read();
+
+  if ((tempSlotNumber <= SLOT_MIN_NUMBER) || (tempSlotNumber >= SLOT_MAX_NUMBER)) {
+    tempSlotNumber = SLOT_DEFAULT_NUMBER;
+    slotNumberFlash.write(tempSlotNumber);
+  }
+  updateSlot(tempSlotNumber);
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "SN,0", true, tempSlotNumber);
+  return tempSlotNumber;
+}
+
+//***GET SLOT NUMBER API FUNCTION***//
+// Function   : getSlotNumber
+//
+// Description: This function is redefinition of main getSlotNumber function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getSlotNumber(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getSlotNumber(responseEnabled, apiEnabled);
+  }
+}
+
+//*** SET SLOT NUMBER FUNCTION***//
+/// Function   : setSlotNumber
+//
+// Description: This function sets the slot number.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               inputSlotNumber : int : The input cursor speed level
+//
+// Return     : void
+//*********************************//
+void setSlotNumber(bool responseEnabled, bool apiEnabled, int inputSlotNumber) {
+  String cursorSpeedCommand = "SN";
+  if ((inputSlotNumber >= SLOT_MIN_NUMBER) && (inputSlotNumber <= SLOT_MAX_NUMBER)) {
+    slotNumberFlash.write(inputSlotNumber);
+    updateSlot(inputSlotNumber);
+    printResponseInt(responseEnabled, apiEnabled, true, 0, "SN,1", true, inputSlotNumber); // Success output
+  }
+  else {
+    printResponseInt(responseEnabled, apiEnabled, false, 3, "SN,1", true, inputSlotNumber); //failure output
+  }
+}
+
+//***SET SLOT NUMBER CURSOR SPEED API FUNCTION***//
+// Function   : setSlotNumber
+//
+// Description: This function is redefinition of main setSlotNumber function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setSlotNumber(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  setSlotNumber(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
 
 //*** GET JOYSTICK DEADZONE FUNCTION***//
 /// Function   : getJoystickDeadZone

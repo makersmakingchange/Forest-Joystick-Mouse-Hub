@@ -40,9 +40,9 @@
 
 // 5 Neopixels connected in series
 #define LED_SLOT0         5 // Non-existent Neopixel for no light
-#define LED_SLOT1         2 // Neopixel LED number
-#define LED_SLOT2         1 // Neopixel LED number
-#define LED_SLOT3         0 // Neopixel LED number
+#define LED_SLOT1         2 // Neopixel LED number 2 //L3
+#define LED_SLOT2         1 // Neopixel LED number 1 //L2
+#define LED_SLOT3         0 // Neopixel LED number 0 //L1
 #define LED_GAMEPAD       4 // Neopixel LED number
 #define LED_MOUSE         3 // Neopixel LED number
 #define LED_DEFAULT_BRIGHTNESS 50
@@ -242,7 +242,7 @@ const switchStruct switchProperty[] {
 };
 
 //Slot properties                   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPEDNING IF INIT OR NO
-slotStruct slotProperties[] {
+slotStruct mouseSlots[] {
   {0, LED_SLOT0, "Default", 5}, // slot number, Slot LED Number, Slot name, cursor speed
   {1, LED_SLOT1, "Slow",    1},
   {2, LED_SLOT2, "Medium",  5},
@@ -321,11 +321,8 @@ void setup() {
       leds.show();
       break;
   }
-
-  // Turn on indicator light for current slot
-  leds.setPixelColor(slotProperties[slotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
-  leds.show();
-  
+  updateSlot(slotNumber);
+ 
   lastInteractionUpdate = millis();  // get first timestamp
 
 }
@@ -381,7 +378,7 @@ void initMemory() {
     isConfigured = 1;
 
     //cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    //Load each slot cursor speed level here
-    cursorSpeedLevel = slotProperties[slotNumber].slotCursorSpeedLevel;  
+    cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
 
     //Write default settings to flash storage
     modelNumberFlash.write(modelNumber);
@@ -403,13 +400,12 @@ void initMemory() {
     operatingMode = operatingModeFlash.read();
     slotNumber = slotNumberFlash.read();
     //cursorSpeedLevel = cursorSpeedLevelFlash.read();
-    cursorSpeedLevel = slotProperties[slotNumber].slotCursorSpeedLevel;  
+    cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
     delay(FLASH_DELAY_TIME);
   }
 
-  updateSlot(slotNumber);
-
+  
   //Serial print settings
   Serial.print("Model Number: ");
   Serial.println(modelNumber);
@@ -855,14 +851,14 @@ void updateSlot(int newSlotNumber){
 
 
   // Update cursor speed    
-  cursorSpeedLevel = slotProperties[slotNumber].slotCursorSpeedLevel; 
+  cursorSpeedLevel = mouseSlots[newSlotNumber].slotCursorSpeedLevel; 
   updateCursorSpeed(cursorSpeedLevel);  
     
   // Update LEDs
       // Turn off previous slot LED
-  leds.setPixelColor(slotProperties[slotNumber].slotLEDNumber, leds.Color(0, 0, 0));
+  leds.setPixelColor(mouseSlots[slotNumber].slotLEDNumber, leds.Color(0, 0, 0));
     // Turn on indicator light for current slot
-  leds.setPixelColor(slotProperties[newSlotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
+  leds.setPixelColor(mouseSlots[newSlotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
   leds.show();
 
   //Update global variable.

@@ -23,7 +23,7 @@
 #include <Adafruit_NeoPixel.h> //Lights on QtPy
 
 
-#define USB_DEBUG  1 // Set this to 0 for best performance.
+#define USB_DEBUG  0 // Set this to 0 for best performance.
 
 // ==================== Pin Assignment =================
 
@@ -48,11 +48,11 @@
 #define LED_DEFAULT_BRIGHTNESS 50
 
 
-#define MODE_MOUSE 1
-#define MODE_GAMEPAD 0
-#define DEFAULT_MODE MODE_MOUSE
+#define MODE_MOUSE        1
+#define MODE_GAMEPAD      0
+#define DEFAULT_MODE      MODE_MOUSE
 
-#define DEFAULT_SLOT 0
+#define DEFAULT_SLOT      0
 
 #define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
@@ -104,6 +104,12 @@ int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
 int slotNumber;      // Slots numbered 1-3 with different settings
 int ledBrightness;
+int xNeutral = 512;
+int yNeutral = 512;
+int xMinimum = 0;
+int yMinimum = 0;
+int xMaximum = 1023;
+int yMaximum = 1203;
 
 
 // Variables stored in Flash Memory
@@ -116,6 +122,14 @@ FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
 FlashStorage(slotNumberFlash,int);  // Track index of current settings slot
+//Calibration
+FlashStorage(xNeutralFlash,int);
+FlashStorage(xMinimumFlash,int);
+FlashStorage(xMaximumFlash,int);
+FlashStorage(yNeutralFlash,int);
+FlashStorage(yMinimumFlash,int);
+FlashStorage(yMaximumFlash,int);
+
 
 // Timing Variables
 long lastInteractionUpdate;
@@ -210,30 +224,38 @@ typedef struct {
 _functionList getDeviceNumberFunction =           {"DN", "0", "0", &getDeviceNumber};
 _functionList getModelNumberFunction =            {"MN", "0", "0", &getModelNumber};
 _functionList getVersionNumberFunction =          {"VN", "0", "0", &getVersionNumber};
+_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
+_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
+_functionList getJoystickInitializationFunction = {"IN", "0", "0", &getJoystickInitialization};
+_functionList setJoystickInitializationFunction = {"IN", "1", "1", &setJoystickInitialization};
+_functionList getJoystickCalibrationFunction =    {"CA", "0", "0", &getJoystickCalibration};
+_functionList setJoystickCalibrationFunction =    {"CA", "1", "1", &setJoystickCalibration};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
-_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
-_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
 //_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
 //_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
 
 // Declare array of API functions
-_functionList apiFunction[10] = {
+_functionList apiFunction[14] = {
   getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
+  getSlotNumberFunction,
+  setSlotNumberFunction,
+  getJoystickInitializationFunction,
+  setJoystickInitializationFunction,
+  getJoystickCalibrationFunction,
+  setJoystickCalibrationFunction,
   getJoystickDeadZoneFunction,
   setJoystickDeadZoneFunction,
   getMouseCursorSpeedFunction,
-  setMouseCursorSpeedFunction,
-  getSlotNumberFunction,
-  setSlotNumberFunction
+  setMouseCursorSpeedFunction
 };
 
 //Switch properties
-const switchStruct switchProperty[] {
+const switchStruct joystickMapping[] {
   {1, "S1", 1},
   {2, "S2", 2},
   {3, "S3", 3},
@@ -375,6 +397,13 @@ void initMemory() {
     operatingMode = DEFAULT_MODE;
     slotNumber = DEFAULT_SLOT;
     ledBrightness = LED_DEFAULT_BRIGHTNESS;
+    xMinimum = 0;
+    xNeutral = 512;
+    xMaximum = 1023;
+    yMinimum = 0;
+    yNeutral = 512;
+    yMaximum = 1023;
+
     isConfigured = 1;
 
     //cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    //Load each slot cursor speed level here
@@ -388,6 +417,12 @@ void initMemory() {
     operatingModeFlash.write(operatingMode);
     slotNumberFlash.write(slotNumber);
     ledBrightnessFlash.write(ledBrightness);
+    xMinimumFlash.write(xMinimum);
+    xNeutralFlash.write(xNeutral);
+    xMaximumFlash.write(xMaximum);
+    yMinimumFlash.write(yMinimum);
+    yNeutralFlash.write(yNeutral);
+    yMaximumFlash.write(yMaximum);
 
     isConfiguredFlash.write(isConfigured);
     delay(FLASH_DELAY_TIME);
@@ -402,6 +437,14 @@ void initMemory() {
     //cursorSpeedLevel = cursorSpeedLevelFlash.read();
     cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
+
+    xMinimumFlash.read();
+    //xNeutralFlash.read();
+    xMaximumFlash.read();
+    yMinimumFlash.read();
+    //yNeutralFlash.read();
+    yMaximumFlash.read();
+
     delay(FLASH_DELAY_TIME);
   }
 
@@ -438,8 +481,34 @@ void initMemory() {
 //****************************************//
 void initJoystick()
 {
+  joystickNeutralCalibration();
   getJoystickDeadZone(true, false);                                         //Get joystick deadzone stored in memory                                      //Get joystick calibration points stored in flash memory
 }
+
+
+void joystickNeutralCalibration() {
+
+  // leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));// Turn LED white
+  // leds.show();
+
+  int tempXNeutral = 0;
+  int tempYNeutral = 0;
+
+  const int JOYSTICK_NEUTRAL_READINGS = 10;
+
+  for (int i = 0; i < JOYSTICK_NEUTRAL_READINGS ; i++){
+     //Read analog raw value using ADC
+  tempXNeutral += analogRead(PIN_JOYSTICK_X);
+  tempYNeutral += analogRead(PIN_JOYSTICK_Y);
+  delay(50);
+  }
+  
+  xNeutral = tempXNeutral / JOYSTICK_NEUTRAL_READINGS;
+  yNeutral = tempYNeutral / JOYSTICK_NEUTRAL_READINGS;
+  
+
+}
+
 
 //***READ JOYSTICK FUNCTION**//
 // Function   : readJoystick
@@ -620,28 +689,28 @@ void switchesJoystickActions() {
 
   //Perform button actions
   if (switchS1Pressed) {
-    gamepadButtonPress(switchProperty[0].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[0].switchButtonNumber);
   }
   else if (!switchS1Pressed && switchS1PrevPressed) {
-    gamepadButtonRelease(switchProperty[0].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[0].switchButtonNumber);
   }
 
   if (switchS2Pressed) {
-    gamepadButtonPress(switchProperty[1].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[1].switchButtonNumber);
   } else if (!switchS2Pressed && switchS2PrevPressed) {
-    gamepadButtonRelease(switchProperty[1].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[1].switchButtonNumber);
   }
 
   if (switchS3Pressed) {
-    gamepadButtonPress(switchProperty[2].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[2].switchButtonNumber);
   } else if (!switchS3Pressed && switchS3PrevPressed) {
-    gamepadButtonRelease(switchProperty[2].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[2].switchButtonNumber);
   }
 
   if (switchS4Pressed) {
-    gamepadButtonPress(switchProperty[3].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[3].switchButtonNumber);
   } else if (!switchS4Pressed && switchS4PrevPressed) {
-    gamepadButtonRelease(switchProperty[3].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[3].switchButtonNumber);
   }
 
 }
@@ -1555,6 +1624,174 @@ void setSlotNumber(bool responseEnabled, bool apiEnabled, int inputSlotNumber) {
 // Return     : void
 void setSlotNumber(bool responseEnabled, bool apiEnabled, String optionalParameter) {
   setSlotNumber(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+
+
+
+//***GET JOYSTICK INITIALIZATION FUNCTION***//
+/// Function   : getJoystickInitialization
+//
+// Description: This function retrieves the neutral position from the joystick initialization.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getJoystickInitialization(bool responseEnabled, bool apiEnabled) {
+  //pointFloatType tempCenterPoint = js.getInputCenter();
+  //js.setMinimumRadius();                                                                    //Update the minimum cursor operating radius 
+  int tempCenterPoint[2];
+  tempCenterPoint[0]=xNeutral;
+  tempCenterPoint[1]=yNeutral;
+  printResponseFloatPointArray(responseEnabled, apiEnabled, true, 0, "IN,0", true, tempCenterPoint);
+}
+//***GET JOYSTICK INITIALIZATION API FUNCTION***//
+// Function   : getJoystickInitialization
+//
+// Description: This function is redefinition of main getJoystickInitialization function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getJoystickInitialization(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getJoystickInitialization(responseEnabled, apiEnabled);
+  }
+}
+
+//***SET JOYSTICK INITIALIZATION FUNCTION***//
+/// Function   : setJoystickInitialization
+//
+// Description: This function performs joystick Initialization.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void setJoystickInitialization(bool responseEnabled, bool apiEnabled) {
+ // int stepNumber = 0;
+ // canOutputAction = false;
+ // calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_INIT_START_DELAY, performJoystickCenter, (int *)stepNumber);  
+}
+
+//***SET JOYSTICK INITIALIZATION API FUNCTION***//
+// Function   : setJoystickInitialization
+//
+// Description: This function is redefinition of main setJoystickInitialization function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setJoystickInitialization(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 1) {
+    setJoystickInitialization(responseEnabled, apiEnabled);
+  }
+}
+
+//*** GET JOYSTICK CALIBRATION FUNCTION***//
+/// Function   : getJoystickCalibration
+//
+// Description: This function retrieves minimum and maximum values from joystick calibration.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getJoystickCalibration(bool responseEnabled, bool apiEnabled) {
+  // String commandKey;
+  // pointFloatType calibrationPointArray[5];
+  // calibrationPointArray[0] = js.getInputCenter();
+  // for (int i = 1; i < 5; i++)
+  // {
+  //   commandKey = "CA" + String(i);
+  //   calibrationPointArray[i] = mem.readPoint(CONF_SETTINGS_FILE, commandKey);
+  //   js.setInputMax(i, calibrationPointArray[i]);
+  // }
+  //js.setMinimumRadius();                                                                              //Update the minimum cursor operating radius 
+  
+  int calibrationPointArray[6];
+
+  calibrationPointArray[0]=xMin;
+  calibrationPointArray[1]=xNeutral;
+  calibrationPointArray[2]=xMax;
+  calibrationPointArray[3]=yMin;
+  calibrationPointArray[4]=yNeutral;
+  calibrationPointArray[5]=yMax;
+
+  
+  printResponseFloatPointArray(responseEnabled, apiEnabled, true, 0, "CA,0", true, "", 6, ',', calibrationPointArray);
+
+}
+//***GET JOYSTICK CALIBRATION API FUNCTION***//
+// Function   : getJoystickCalibration
+//
+// Description: This function is redefinition of main getJoystickCalibration function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getJoystickCalibration(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getJoystickCalibration(responseEnabled, apiEnabled);
+  }
+}
+
+//*** SET JOYSTICK CALIBRATION FUNCTION***//
+/// Function   : setJoystickCalibration
+//
+// Description: This function starts the joystick Calibration.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void setJoystickCalibration(bool responseEnabled, bool apiEnabled) {
+  js.clear();                                                                                           //Clear previous calibration values
+  int stepNumber = 0;
+  canOutputAction = false;
+  calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_CALIB_START_DELAY, performJoystickCalibration, (int *)stepNumber);  //Start the process
+}
+//***SET JOYSTICK CALIBRATION API FUNCTION***//
+// Function   : setJoystickCalibration
+//
+// Description: This function is redefinition of main setJoystickCalibration function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setJoystickCalibration(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 1) {
+    setJoystickCalibration(responseEnabled, apiEnabled);
+  }
 }
 
 

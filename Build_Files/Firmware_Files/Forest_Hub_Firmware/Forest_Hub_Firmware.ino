@@ -27,8 +27,8 @@
 
 // ==================== Pin Assignment =================
 
-#define PIN_JOYSTICK_X    A1
-#define PIN_JOYSTICK_Y    A0
+#define PIN_JOYSTICK_X    A0
+#define PIN_JOYSTICK_Y    A1
 #define PIN_SW_S1         A2
 #define PIN_SW_S2         A3
 #define PIN_SW_S3         A6 //TX
@@ -531,7 +531,7 @@ void readJoystick() {
   outputX = map(inputX, 0, 1023, -127, 127);
   outputY = map(inputY, 0, 1023, -127, 127);
 
-  outputY = -outputY;     // To account for backwards Y directions 
+  //outputY = -outputY;     // To account for backwards Y directions 
 
   double outputMag = calcMag(outputX, outputY);
 

@@ -14,7 +14,7 @@ keywords:
 project-link: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub
 image: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/blob/main/Photos/Forest-Hub.jpg
 made: true
-made-independently: false
+made-independently: true
 license:
   hardware: CERN-OHL-W-2.0
   documentation: CC-BY-SA-4.0
@@ -25,7 +25,7 @@ licensor:
   email: jakem@neilsquire.ca
 okh-manifest-version: 1.0.0
 date-created: 2023-09-27
-date-updated: 2023-09-27
+date-updated: 2024-01-15
 manifest-author:
   name: Jacob McIvor
   affiliation: Neil Squire Society
@@ -41,13 +41,16 @@ contact:
     - platform: Twitter
       user-handle: "@makermakechange"
 contributors:
+  - name: Jacob McIvor
+    affiliation: Neil Squire Society
+    email: jakem@neilsquire.ca
   - name: Josie Versloot
     affiliation: Neil Squire Society
     email: josiev@neilsquire.ca
   - name: Stephen Moyer
     affiliation: Neil Squire Society
     email: stephenm@neilsquire.ca
-  - name: Milad Ha
+  - name: Milad Haji Hassan
     affiliation: Neil Squire Society
     email: miladh@neilsquire.ca
   - name: Derrick Andrews
@@ -56,9 +59,6 @@ contributors:
   - name: Tyler Fentie
     affiliation: Neil Squire Society
     email: tylerf@neilsquire.ca
-  - name: Jacob McIvor
-    affiliation: Neil Squire Society
-    email: jakem@neilsquire.ca
 version: "1.0"
 development-stage: product
 documentation-home: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub
@@ -67,7 +67,7 @@ design-files:
   - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Design_Files/CAD_Files
     title: CAD Files
   - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Design_Files/PCB_Files
-    title: PCB Files
+    title: PCB Design Files
 bom: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Documentation/Forest_Hub_BOM.xlsx
 making-instructions:
   - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Documentation/Forest_Hub_Maker_Guide.pdf
@@ -76,7 +76,7 @@ manufacturing-files:
   - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Build_Files/3D_Printing_Files
     title: 3D Printing Files
   - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Build_Files/PCB_Build_Files
-    title: PCB Files
+    title: PCB Build Files
 operating-instructions:
   - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Documentation/Forest_Hub_User_Guide.pdf
     title: Forest Hub User Guide

@@ -402,6 +402,16 @@ void initMemory() {
     //cursorSpeedLevel = cursorSpeedLevelFlash.read();
     cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
+
+    xMinimum = xMinimumFlash.read();
+    
+    xMaximum = xMaximumFlash.read();
+    yMinimum = yMinimumFlash.read();
+    yMaximum = yMaximumFlash.read();
+
+    //xNeutralFlash.read();
+    //yNeutralFlash.read();
+
     delay(FLASH_DELAY_TIME);
   }
 
@@ -1227,6 +1237,27 @@ void performCommand(String inputString) {
   } //end iterate through API functions
 }
 
+
+
+//***CHECK IF CHAR IS A VALID DELIMITER FUNCTION***//
+// Function   : isValidDelimiter
+//
+// Description: This function checks if the input char is a valid delimiter.
+//              It returns true if the character is a valid delimiter.
+//              It returns false if the character is not a valid delimiter.
+//
+// Parameters :  inputDelimiter : char : The input char delimiter
+//
+// Return     : boolean
+//******************************************//
+bool isValidDelimiter(char inputDelimiter) {
+  bool validOutput;
+
+  (inputDelimiter == ',' || inputDelimiter == ':' || inputDelimiter == '-') ? validOutput = true : validOutput = false;
+
+  return validOutput;
+}
+
 //***VALIDATE INPUT COMMAND FORMAT FUNCTION***//
 // Function   : isValidCommandFormat
 //
@@ -1362,6 +1393,24 @@ void printResponseInt(bool responseEnabled, bool apiEnabled, bool responseStatus
 //***********************************************************************//
 void printResponseFloat(bool responseEnabled, bool apiEnabled, bool responseStatus, int responseNumber, String responseCommand, bool responseParameterEnabled, float responseParameter) {
   printResponseString(responseEnabled, apiEnabled, responseStatus, responseNumber, responseCommand, responseParameterEnabled, String(responseParameter));
+
+}
+
+
+void printResponseIntArray(bool responseEnabled, bool apiEnabled, bool responseStatus, int responseNumber, String responseCommand, bool responseParameterEnabled, String responsePrefix, int responseParameterSize, char responseParameterDelimiter, int responseParameter[]) {
+  char tempParameterDelimiter[1];
+
+  (isValidDelimiter(responseParameterDelimiter)) ? tempParameterDelimiter[0] = {responseParameterDelimiter} : tempParameterDelimiter[0] = {'\0'};
+
+  String responseParameterString = String(responsePrefix);
+  for (int parameterIndex = 0; parameterIndex < responseParameterSize; parameterIndex++) {
+    responseParameterString.concat(responseParameter[parameterIndex]);
+    if (parameterIndex < (responseParameterSize - 1)) {
+      responseParameterString.concat(tempParameterDelimiter[0]);
+    };
+  }
+
+  printResponseString(responseEnabled, apiEnabled, responseStatus, responseNumber, responseCommand, responseParameterEnabled, responseParameterString);
 
 }
 
@@ -1555,6 +1604,196 @@ void setSlotNumber(bool responseEnabled, bool apiEnabled, int inputSlotNumber) {
 // Return     : void
 void setSlotNumber(bool responseEnabled, bool apiEnabled, String optionalParameter) {
   setSlotNumber(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+
+
+
+//***GET JOYSTICK INITIALIZATION FUNCTION***//
+/// Function   : getJoystickInitialization
+//
+// Description: This function retrieves the neutral position from the joystick initialization.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getJoystickInitialization(bool responseEnabled, bool apiEnabled) {
+  //pointFloatType tempCenterPoint = js.getInputCenter();
+  //js.setMinimumRadius();                                                                    //Update the minimum cursor operating radius 
+  int tempCenterPoint[2];
+  tempCenterPoint[0]=xNeutral;
+  tempCenterPoint[1]=yNeutral;
+
+
+  printResponseIntArray(responseEnabled,        // pass through responseEnabled
+                        apiEnabled,             // pass through apiEnabled
+                        true,                   // responseStatus, 
+                        0,                      // responseNumber
+                        "IN,0",                 // responseCommand
+                        true,                   // responseParameterEnabled,
+                        "",                     // responsePrefix
+                        2,                      // responseParameterSize
+                        ',',                    // responseParameterDelimiter
+                        tempCenterPoint);       // responseParameter[]
+
+
+}
+//***GET JOYSTICK INITIALIZATION API FUNCTION***//
+// Function   : getJoystickInitialization
+//
+// Description: This function is redefinition of main getJoystickInitialization function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getJoystickInitialization(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getJoystickInitialization(responseEnabled, apiEnabled);
+  }
+}
+
+//***SET JOYSTICK INITIALIZATION FUNCTION***//
+/// Function   : setJoystickInitialization
+//
+// Description: This function performs joystick Initialization.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void setJoystickInitialization(bool responseEnabled, bool apiEnabled) {
+ // int stepNumber = 0;
+ // canOutputAction = false;
+ // calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_INIT_START_DELAY, performJoystickCenter, (int *)stepNumber);  
+}
+
+//***SET JOYSTICK INITIALIZATION API FUNCTION***//
+// Function   : setJoystickInitialization
+//
+// Description: This function is redefinition of main setJoystickInitialization function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setJoystickInitialization(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 1) {
+    setJoystickInitialization(responseEnabled, apiEnabled);
+  }
+}
+
+//*** GET JOYSTICK CALIBRATION FUNCTION***//
+/// Function   : getJoystickCalibration
+//
+// Description: This function retrieves minimum and maximum values from joystick calibration.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getJoystickCalibration(bool responseEnabled, bool apiEnabled) {
+  // String commandKey;
+  // pointFloatType calibrationPointArray[5];
+  // calibrationPointArray[0] = js.getInputCenter();
+  // for (int i = 1; i < 5; i++)
+  // {
+  //   commandKey = "CA" + String(i);
+  //   calibrationPointArray[i] = mem.readPoint(CONF_SETTINGS_FILE, commandKey);
+  //   js.setInputMax(i, calibrationPointArray[i]);
+  // }
+  //js.setMinimumRadius();                                                                              //Update the minimum cursor operating radius 
+  
+  int calibrationPointArray[6];
+
+  calibrationPointArray[0]=xMinimum;
+  calibrationPointArray[1]=xNeutral;
+  calibrationPointArray[2]=xMaximum;
+  calibrationPointArray[3]=yMinimum;
+  calibrationPointArray[4]=yNeutral;
+  calibrationPointArray[5]=yMaximum;
+
+  
+  printResponseIntArray(responseEnabled,        // pass through responseEnabled
+                        apiEnabled,             // pass through apiEnabled
+                        true,                   // responseStatus, 
+                        0,                      // responseNumber
+                        "CA,0",                 // responseCommand
+                        true,                   // responseParameterEnabled,
+                        "",                     // responsePrefix
+                        6,                      // responseParameterSize
+                        ',',                    // responseParameterDelimiter
+                        calibrationPointArray);       // responseParameter[]
+}
+//***GET JOYSTICK CALIBRATION API FUNCTION***//
+// Function   : getJoystickCalibration
+//
+// Description: This function is redefinition of main getJoystickCalibration function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getJoystickCalibration(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getJoystickCalibration(responseEnabled, apiEnabled);
+  }
+}
+
+//*** SET JOYSTICK CALIBRATION FUNCTION***//
+/// Function   : setJoystickCalibration
+//
+// Description: This function starts the joystick Calibration.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void setJoystickCalibration(bool responseEnabled, bool apiEnabled) {
+  //todo
+  //js.clear();                                                                                           //Clear previous calibration values
+  //int stepNumber = 0;
+  //canOutputAction = false;
+  //calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_CALIB_START_DELAY, performJoystickCalibration, (int *)stepNumber);  //Start the process
+}
+//***SET JOYSTICK CALIBRATION API FUNCTION***//
+// Function   : setJoystickCalibration
+//
+// Description: This function is redefinition of main setJoystickCalibration function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setJoystickCalibration(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 1) {
+    setJoystickCalibration(responseEnabled, apiEnabled);
+  }
 }
 
 

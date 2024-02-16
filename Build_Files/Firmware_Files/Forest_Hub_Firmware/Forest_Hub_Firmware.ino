@@ -2,10 +2,10 @@
   File: OpenAT_Joystick_Software.ino
   Software: OpenAT Joystick Plus 4 Switches, with both USB gamepad and mouse funtionality.
   Developed by: Makers Making Change
-  Version: (25 October 2023)
+  Version: V2.0(16 February 2024)
   License: GPL v3
 
-  Copyright (C) 2023 Neil Squire Society
+  Copyright (C) 2023-2024 Neil Squire Society
   This program is free software: you can redistribute it and/or modify it under the terms of
   the GNU General Public License as published by the Free Software Foundation,
   either version 3 of the License, or (at your option) any later version.

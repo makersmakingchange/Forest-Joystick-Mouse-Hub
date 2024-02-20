@@ -116,6 +116,12 @@ FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
 FlashStorage(slotNumberFlash,int);  // Track index of current settings slot
+FlashStorage(xMinimumFlash,int);
+FlashStorage(xMaximumFlash,int);
+FlashStorage(yMinimumFlash,int);
+FlashStorage(yMaximumFlash,int);
+FlashStorage(xNeutralFlash,int);
+FlashStorage(yNeutralFlash,int);
 
 // Timing Variables
 long lastInteractionUpdate;
@@ -126,6 +132,14 @@ int inputX;
 int inputY;
 int outputX;
 int outputY;
+
+//Declare joystick calibration variables
+int xMinimum;
+int xMaximum;
+int yMinimum;
+int yMaximum;
+int xNeutral;
+int yNeutral;
 
 //Declare switch state variables for each switch
 bool switchS1Pressed;           // Mouse mode = left click
@@ -404,7 +418,6 @@ void initMemory() {
     ledBrightness = ledBrightnessFlash.read();
 
     xMinimum = xMinimumFlash.read();
-    
     xMaximum = xMaximumFlash.read();
     yMinimum = yMinimumFlash.read();
     yMaximum = yMaximumFlash.read();
@@ -499,8 +512,7 @@ void joystickActions() {
 
   switch (operatingMode) {
     case MODE_MOUSE:
-      //mouse action
-      
+      //mouse action   
       mouseJoystickMove(outputX, outputY);  
       break;
     case MODE_GAMEPAD:
@@ -1982,7 +1994,6 @@ double calcMag(double x, double y) {
 
   return magnitude;
 }
-
 
 //***INITIATE SOFTWARE RESET***//
 // Function   : softwareReset

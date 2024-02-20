@@ -30,13 +30,21 @@ bool buttonMState;
 #define BUTTON_MODE_MIN
 
 const int thresholdCount = 7;
-const int t001 = (644+610)/2;
-const int t010 = (610+563)/2;
-const int t011 = (563+513)/2;
-const int t100 = (513+419)/2;
-const int t101 = (419+327)/2;
-const int t110 = (327+185)/2;
-const int t111 = (185+1)/2;
+const int v000 = 643;
+const int v001 = 609;
+const int v010 = 563;
+const int v011 = 512;
+const int v100 = 418;
+const int v101 = 327;
+const int v110 = 185;
+const int v111 = 0;
+const int t001 = (v000+v001)/2;
+const int t010 = (v001+v010)/2;
+const int t011 = (v010+v011)/2;
+const int t100 = (v011+v100)/2;
+const int t101 = (v100+v101)/2;
+const int t110 = (v101+v110)/2;
+const int t111 = (v110+v111)/2;
 const int thresholds[thresholdCount]={t111,t110,t101,t100,t011,t010,t001};
 
 

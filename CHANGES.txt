@@ -1,10 +1,23 @@
+Version 2.0.1 | 2024-Feb-21
+ - BOM
+   - Fixed labels for R2, R5, R6
+   - Removed erroneous modular connector
+   - Fixed unit cost calculation
+ - PCB
+   - Increased pin distance on capacitor footprint
+   - Add value for R5
+   - Cleaned up top silkscreen on PCB
+   - Removed polarity markers from speaker footprint
+- Firmware
+
+
+
 Version 2.0 | 2024-Jan-15
  - Updated PCB
   - Modified wiring for I2C connection to match LipSync
+  - Moved mounting hole
  - Updated enclosure
-  -  
- - Updated Firmware
-  - 
+   - Larger knockout for USB port  
 
 
 Version 1.01 | 2023-Oct-27

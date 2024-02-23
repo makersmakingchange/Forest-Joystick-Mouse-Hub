@@ -12591,7 +12591,7 @@ CP1-3535NG-ND&lt;/a&gt;&lt;/li&gt;
 <part name="R6" library="MMC Eagle" library_urn="urn:adsk.eagle:library:13126479" deviceset="RESISTOR-US-" device="0206/8" package3d_urn="urn:adsk.eagle:package:17795486/3" value="10K"/>
 <part name="+3V3" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="+3V3" device=""/>
 <part name="J1" library="MMC Eagle" library_urn="urn:adsk.eagle:library:13126479" deviceset="5555165-1" device="" package3d_urn="urn:adsk.eagle:package:42530079/2">
-<attribute name="LABEL" value="RJ25-I2C"/>
+<attribute name="LABEL" value="RJ11-I2C"/>
 </part>
 <part name="GND6" library="SparkFun-Aesthetics" deviceset="GND" device=""/>
 <part name="+3V4" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="+3V3" device=""/>

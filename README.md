@@ -6,7 +6,8 @@ The device is comprised of a custom printed circuit board, off-the-shelf electro
 
 The Forest Hub is open assistive technology (OpenAT). Under the terms of the open source licenses, the device may be built, used, and improved upon by anyone.
 
-An updated version of the PCB and enclosure has been released (V2.0, 2023-Nov-24). The last version of the Forest Hub (v1.0) has been built and tested.
+Last updated: 2024-Feb-21
+An updated version of the PCB and enclosure has been released (V2.0.1, 2024-Feb-20). The last version of the Forest Hub (v1.0) has been built and tested.
 
 <img src="Photos/Forest_Hub.png" width="500" alt="A Forest Hub in a red enclosure.">
 

@@ -2,7 +2,7 @@
 * File: XACGamepad.h
 * Developed by: Makers Making Change
 * Version: (20 April 2022)
-* Copyright 2023 Neil Squire Society . 
+* Copyright 2023-2024 Neil Squire Society . 
 */
 
 

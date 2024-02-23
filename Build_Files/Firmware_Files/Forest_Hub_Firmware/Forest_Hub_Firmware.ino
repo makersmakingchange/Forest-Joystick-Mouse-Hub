@@ -2,7 +2,7 @@
   File: OpenAT_Joystick_Software.ino
   Software: OpenAT Joystick Plus 4 Switches, with both USB gamepad and mouse funtionality.
   Developed by: Makers Making Change
-  Version: V2.0(16 February 2024)
+  Version: V2.0(20 February 2024)
   License: GPL v3
 
   Copyright (C) 2023-2024 Neil Squire Society
@@ -51,6 +51,12 @@
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
 #define DEFAULT_MODE MODE_MOUSE
+// #define DEFAULT_MODE MODE_GAMEPAD
+
+
+#define CONF_OPERATING_MODE_MIN 0
+#define CONF_OPERATING_MODE_MAX 1
+#define CONF_OPERATING_MODE_DEFAULT DEFAULT_MODE
 
 #define DEFAULT_SLOT 0
 
@@ -134,12 +140,12 @@ int outputX;
 int outputY;
 
 //Declare joystick calibration variables
-int xMinimum;
-int xMaximum;
-int yMinimum;
-int yMaximum;
-int xNeutral;
-int yNeutral;
+int xMinimum = 0;
+int xMaximum = 1023;
+int yMinimum = 0;
+int yMaximum = 1023;
+int xNeutral = 512;
+int yNeutral = 512;
 
 //Declare switch state variables for each switch
 bool switchS1Pressed;           // Mouse mode = left click
@@ -224,26 +230,32 @@ typedef struct {
 _functionList getDeviceNumberFunction =           {"DN", "0", "0", &getDeviceNumber};
 _functionList getModelNumberFunction =            {"MN", "0", "0", &getModelNumber};
 _functionList getVersionNumberFunction =          {"VN", "0", "0", &getVersionNumber};
+_functionList getOperatingModeFunction =          {"OM", "0", "0", &getOperatingMode};
+_functionList setOperatingModeFunction =          {"OM", "1", "",  &setOperatingMode};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
 _functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
 _functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
+_functionList softResetFunction =                 {"SR", "1", "1", &softReset};
 //_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
 //_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
 
 // Declare array of API functions
-_functionList apiFunction[10] = {
+_functionList apiFunction[12] = {
   getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
+  getOperatingModeFunction,
+  setOperatingModeFunction,
   getJoystickDeadZoneFunction,
   setJoystickDeadZoneFunction,
   getMouseCursorSpeedFunction,
   setMouseCursorSpeedFunction,
   getSlotNumberFunction,
-  setSlotNumberFunction
+  setSlotNumberFunction,
+  softResetFunction
 };
 
 //Switch properties
@@ -278,35 +290,42 @@ Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 void setup() {
     // Begin serial
   Serial.begin(115200);
+  if (USB_DEBUG) { Serial.println("DEBUG: Serial Started.");}
     
     // Initialize Memory
   initMemory();
   delay(FLASH_DELAY_TIME);
+  if (USB_DEBUG) { Serial.println("DEBUG: Memory initialized.");}
   
   led_microcontroller.begin(); // Initiate pixel on microcontroller
   led_microcontroller.clear();
   led_microcontroller.setBrightness(ledBrightness);
-  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 0, 0)); // Turn LED red to start
+  // led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 0, 0)); // Turn LED red to start
+  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 255)); // Turn LED white to start
   led_microcontroller.show();
+  if (USB_DEBUG) { Serial.println("DEBUG: Microcontroller LED on.");}
 
   leds.begin();
   leds.clear();
   leds.setBrightness(ledBrightness);
   leds.show();
- 
+ if (USB_DEBUG) { Serial.println("DEBUG: Neopixel started.");}
   
     // Begin HID gamepad or mouse, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
       initMouse();
+      if (USB_DEBUG) { Serial.println("DEBUG: Mouse started.");}
       break;
     case MODE_GAMEPAD:
       gamepad.begin();
+      if (USB_DEBUG) { Serial.println("DEBUG: Gamepad Started.");}
       break;
   }
 
   // Initialize Joystick
   initJoystick();
+  if (USB_DEBUG) { Serial.println("DEBUG: Joystick initialized.");}
 
   //Initialize the switch pins as inputs
   pinMode(PIN_SW_S1, INPUT_PULLUP);
@@ -482,8 +501,10 @@ void readJoystick() {
   inputY = analogRead(PIN_JOYSTICK_Y);
 
   //Map joystick x and y move values
-  outputX = map(inputX, 0, 1023, -127, 127);
+  outputX = map(inputX, 0, 1023, -127, 127);   //TODO - MODIFY TO IMPLEMENT CALIBRATION
   outputY = map(inputY, 0, 1023, -127, 127);
+
+
 
   //outputY = -outputY;     // To account for backwards Y directions 
 
@@ -1440,6 +1461,9 @@ void printResponseIntArray(bool responseEnabled, bool apiEnabled, bool responseS
 //*********************************//
 void getDeviceNumber(bool responseEnabled, bool apiEnabled) {
   int tempDeviceNumber = JOYSTICK_DEVICE;
+
+  if (USB_DEBUG) { Serial.println("DEBUG: getDeviceNumber");}
+
   printResponseInt(responseEnabled, apiEnabled, true, 0, "DN,0", true, tempDeviceNumber);
 
 }
@@ -1995,6 +2019,142 @@ double calcMag(double x, double y) {
   return magnitude;
 }
 
+//***GET OPERATING MODE STATE FUNCTION***//
+// Function   : getOperatingMode
+//
+// Description: This function retrieves the state of operating mode.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : operatingState : intol : The current state of operating mode.
+//*********************************//
+int getOperatingMode(bool responseEnabled, bool apiEnabled) {
+  String commandKey = "OM";
+
+    int tempOperatingMode;
+  // tempOperatingMode = mem.readInt(CONF_SETTINGS_FILE, commandKey);
+  tempOperatingMode = operatingModeFlash.read();
+
+  if ((tempOperatingMode < CONF_OPERATING_MODE_MIN) || (tempOperatingMode > CONF_OPERATING_MODE_MAX)) {
+    tempOperatingMode = CONF_OPERATING_MODE_DEFAULT;
+    // mem.writeInt(CONF_SETTINGS_FILE, commandKey, tempOperatingMode);
+    operatingModeFlash.write(tempOperatingMode);
+  }
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "OM,0", true, tempOperatingMode);
+
+  return tempOperatingMode;
+}
+//***GET OPERATING MODE STATE API FUNCTION***//
+// Function   : getOperatingMode
+//
+// Description: This function is redefinition of main getOperatingMode function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getOperatingMode(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getOperatingMode(responseEnabled, apiEnabled);
+  }
+}
+
+//***SET OPERATING MODE STATE FUNCTION***//
+// Function   : setOperatingMode
+//
+// Description: This function sets the state of operating mode.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               inputOperatingMode : int : The new operating mode state 
+//
+// Return     : void
+//*********************************//
+void setOperatingMode(bool responseEnabled, bool apiEnabled, int inputOperatingMode) {
+  String commandKey = "OM";
+  
+  if (USB_DEBUG) { Serial.println("DEBUG: setOperatingMode");}
+   
+  if ((inputOperatingMode >= CONF_OPERATING_MODE_MIN) && (inputOperatingMode <= CONF_OPERATING_MODE_MAX)) {   
+    // mem.writeInt(CONF_SETTINGS_FILE, commandKey, inputOperatingMode);
+    if (inputOperatingMode != operatingMode){
+      operatingModeFlash.write(inputOperatingMode);
+      delay(FLASH_DELAY_TIME);
+      operatingMode = inputOperatingMode;
+      //changeOperatingMode(inputOperatingMode);
+      softwareReset(); // perform reset if mode changes
+    }
+    printResponseInt(responseEnabled, apiEnabled, true, 0, "OM,1", true, inputOperatingMode);
+  
+  }
+  else {
+    printResponseInt(responseEnabled, apiEnabled, false, 3, "OM,1", true, inputOperatingMode);
+  }
+
+  
+
+}
+//***SET OPERATING MODE STATE API FUNCTION***//
+// Function   : setOperatingMode
+//
+// Description: This function is redefinition of main setOperatingMode function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setOperatingMode(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  setOperatingMode(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+//***SOFT RESET FUNCTION***//
+// Function   : softReset
+//
+// Description: This function performs a software reset.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//***************************//
+void softReset(bool responseEnabled, bool apiEnabled) {
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "SR,1", true, 1);
+  softwareReset();
+
+}
+//***FACTORY RESET API FUNCTION***//
+// Function   : softReset
+//
+// Description: This function is redefinition of main softRest function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void softReset(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 1) {
+    softReset(responseEnabled, apiEnabled);
+  }
+}
+
 //***INITIATE SOFTWARE RESET***//
 // Function   : softwareReset
 //
@@ -2005,8 +2165,11 @@ double calcMag(double x, double y) {
 // Return     : none
 //******************************************//
 void softwareReset() {
+  if (USB_DEBUG) { Serial.println("DEBUG: softwareReset");}
+  
   switch (operatingMode) {
     case MODE_GAMEPAD:            // New mode is Gamepad, active mode is Mouse
+      if (USB_DEBUG) { Serial.println("DEBUG: End mouse");}
       Mouse.release(MOUSE_LEFT);
       Mouse.release(MOUSE_MIDDLE);
       Mouse.release(MOUSE_RIGHT);
@@ -2014,12 +2177,15 @@ void softwareReset() {
       delay(10);
       break;
     case MODE_MOUSE:              // New mode is Mouse, active mode is Gamepad
+    if (USB_DEBUG) { Serial.println("DEBUG: End gamepad");}
       gamepadButtonReleaseAll();
       gamepad.end();
       delay(10);
       break;
   }
+  if (USB_DEBUG) { Serial.println("DEBUG: Attempt reset");}
+  delay(1000);
   
-  NVIC_SystemReset();
+  NVIC_SystemReset();  // Software reset
   delay(10);
 }

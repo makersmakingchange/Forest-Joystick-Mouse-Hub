@@ -2,10 +2,10 @@
   File: OpenAT_Joystick_Software.ino
   Software: OpenAT Joystick Plus 4 Switches, with both USB gamepad and mouse funtionality.
   Developed by: Makers Making Change
-  Version: (25 October 2023)
+  Version: V2.0(20 February 2024)
   License: GPL v3
 
-  Copyright (C) 2023 Neil Squire Society
+  Copyright (C) 2023-2024 Neil Squire Society
   This program is free software: you can redistribute it and/or modify it under the terms of
   the GNU General Public License as published by the Free Software Foundation,
   either version 3 of the License, or (at your option) any later version.
@@ -48,9 +48,15 @@
 #define LED_DEFAULT_BRIGHTNESS 50
 
 
-#define MODE_MOUSE        1
-#define MODE_GAMEPAD      0
-#define DEFAULT_MODE      MODE_MOUSE
+#define MODE_MOUSE 1
+#define MODE_GAMEPAD 0
+#define DEFAULT_MODE MODE_MOUSE
+// #define DEFAULT_MODE MODE_GAMEPAD
+
+
+#define CONF_OPERATING_MODE_MIN 0
+#define CONF_OPERATING_MODE_MAX 1
+#define CONF_OPERATING_MODE_DEFAULT DEFAULT_MODE
 
 #define DEFAULT_SLOT      0
 
@@ -122,14 +128,12 @@ FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
 FlashStorage(slotNumberFlash,int);  // Track index of current settings slot
-//Calibration
-FlashStorage(xNeutralFlash,int);
 FlashStorage(xMinimumFlash,int);
 FlashStorage(xMaximumFlash,int);
-FlashStorage(yNeutralFlash,int);
 FlashStorage(yMinimumFlash,int);
 FlashStorage(yMaximumFlash,int);
-
+FlashStorage(xNeutralFlash,int);
+FlashStorage(yNeutralFlash,int);
 
 // Timing Variables
 long lastInteractionUpdate;
@@ -140,6 +144,14 @@ int inputX;
 int inputY;
 int outputX;
 int outputY;
+
+//Declare joystick calibration variables
+int xMinimum = 0;
+int xMaximum = 1023;
+int yMinimum = 0;
+int yMaximum = 1023;
+int xNeutral = 512;
+int yNeutral = 512;
 
 //Declare switch state variables for each switch
 bool switchS1Pressed;           // Mouse mode = left click
@@ -230,18 +242,25 @@ _functionList getJoystickInitializationFunction = {"IN", "0", "0", &getJoystickI
 _functionList setJoystickInitializationFunction = {"IN", "1", "1", &setJoystickInitialization};
 _functionList getJoystickCalibrationFunction =    {"CA", "0", "0", &getJoystickCalibration};
 _functionList setJoystickCalibrationFunction =    {"CA", "1", "1", &setJoystickCalibration};
+_functionList getOperatingModeFunction =          {"OM", "0", "0", &getOperatingMode};
+_functionList setOperatingModeFunction =          {"OM", "1", "",  &setOperatingMode};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
+_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
+_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
+_functionList softResetFunction =                 {"SR", "1", "1", &softReset};
 //_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
 //_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
 
 // Declare array of API functions
-_functionList apiFunction[14] = {
+_functionList apiFunction[16] = {
   getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
+  getOperatingModeFunction,
+  setOperatingModeFunction,
   getSlotNumberFunction,
   setSlotNumberFunction,
   getJoystickInitializationFunction,
@@ -251,7 +270,8 @@ _functionList apiFunction[14] = {
   getJoystickDeadZoneFunction,
   setJoystickDeadZoneFunction,
   getMouseCursorSpeedFunction,
-  setMouseCursorSpeedFunction
+  setMouseCursorSpeedFunction,
+  softResetFunction
 };
 
 //Switch properties
@@ -286,35 +306,42 @@ Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
 void setup() {
     // Begin serial
   Serial.begin(115200);
+  if (USB_DEBUG) { Serial.println("DEBUG: Serial Started.");}
     
     // Initialize Memory
   initMemory();
   delay(FLASH_DELAY_TIME);
+  if (USB_DEBUG) { Serial.println("DEBUG: Memory initialized.");}
   
   led_microcontroller.begin(); // Initiate pixel on microcontroller
   led_microcontroller.clear();
   led_microcontroller.setBrightness(ledBrightness);
-  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 0, 0)); // Turn LED red to start
+  // led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 0, 0)); // Turn LED red to start
+  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 255)); // Turn LED white to start
   led_microcontroller.show();
+  if (USB_DEBUG) { Serial.println("DEBUG: Microcontroller LED on.");}
 
   leds.begin();
   leds.clear();
   leds.setBrightness(ledBrightness);
   leds.show();
- 
+ if (USB_DEBUG) { Serial.println("DEBUG: Neopixel started.");}
   
     // Begin HID gamepad or mouse, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
       initMouse();
+      if (USB_DEBUG) { Serial.println("DEBUG: Mouse started.");}
       break;
     case MODE_GAMEPAD:
       gamepad.begin();
+      if (USB_DEBUG) { Serial.println("DEBUG: Gamepad Started.");}
       break;
   }
 
   // Initialize Joystick
   initJoystick();
+  if (USB_DEBUG) { Serial.println("DEBUG: Joystick initialized.");}
 
   //Initialize the switch pins as inputs
   pinMode(PIN_SW_S1, INPUT_PULLUP);
@@ -438,12 +465,13 @@ void initMemory() {
     cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
 
-    xMinimumFlash.read();
+    xMinimum = xMinimumFlash.read();
+    xMaximum = xMaximumFlash.read();
+    yMinimum = yMinimumFlash.read();
+    yMaximum = yMaximumFlash.read();
+
     //xNeutralFlash.read();
-    xMaximumFlash.read();
-    yMinimumFlash.read();
     //yNeutralFlash.read();
-    yMaximumFlash.read();
 
     delay(FLASH_DELAY_TIME);
   }
@@ -528,8 +556,10 @@ void readJoystick() {
   inputY = analogRead(PIN_JOYSTICK_Y);
 
   //Map joystick x and y move values
-  outputX = map(inputX, 0, 1023, -127, 127);
+  outputX = map(inputX, 0, 1023, -127, 127);   //TODO - MODIFY TO IMPLEMENT CALIBRATION
   outputY = map(inputY, 0, 1023, -127, 127);
+
+
 
   //outputY = -outputY;     // To account for backwards Y directions 
 
@@ -558,8 +588,7 @@ void joystickActions() {
 
   switch (operatingMode) {
     case MODE_MOUSE:
-      //mouse action
-      
+      //mouse action   
       mouseJoystickMove(outputX, outputY);  
       break;
     case MODE_GAMEPAD:
@@ -1296,6 +1325,27 @@ void performCommand(String inputString) {
   } //end iterate through API functions
 }
 
+
+
+//***CHECK IF CHAR IS A VALID DELIMITER FUNCTION***//
+// Function   : isValidDelimiter
+//
+// Description: This function checks if the input char is a valid delimiter.
+//              It returns true if the character is a valid delimiter.
+//              It returns false if the character is not a valid delimiter.
+//
+// Parameters :  inputDelimiter : char : The input char delimiter
+//
+// Return     : boolean
+//******************************************//
+bool isValidDelimiter(char inputDelimiter) {
+  bool validOutput;
+
+  (inputDelimiter == ',' || inputDelimiter == ':' || inputDelimiter == '-') ? validOutput = true : validOutput = false;
+
+  return validOutput;
+}
+
 //***VALIDATE INPUT COMMAND FORMAT FUNCTION***//
 // Function   : isValidCommandFormat
 //
@@ -1434,6 +1484,24 @@ void printResponseFloat(bool responseEnabled, bool apiEnabled, bool responseStat
 
 }
 
+
+void printResponseIntArray(bool responseEnabled, bool apiEnabled, bool responseStatus, int responseNumber, String responseCommand, bool responseParameterEnabled, String responsePrefix, int responseParameterSize, char responseParameterDelimiter, int responseParameter[]) {
+  char tempParameterDelimiter[1];
+
+  (isValidDelimiter(responseParameterDelimiter)) ? tempParameterDelimiter[0] = {responseParameterDelimiter} : tempParameterDelimiter[0] = {'\0'};
+
+  String responseParameterString = String(responsePrefix);
+  for (int parameterIndex = 0; parameterIndex < responseParameterSize; parameterIndex++) {
+    responseParameterString.concat(responseParameter[parameterIndex]);
+    if (parameterIndex < (responseParameterSize - 1)) {
+      responseParameterString.concat(tempParameterDelimiter[0]);
+    };
+  }
+
+  printResponseString(responseEnabled, apiEnabled, responseStatus, responseNumber, responseCommand, responseParameterEnabled, responseParameterString);
+
+}
+
 //***GET DEVICE NUMBER FUNCTION***//
 // Function   : getDeviceNumber
 //
@@ -1448,6 +1516,9 @@ void printResponseFloat(bool responseEnabled, bool apiEnabled, bool responseStat
 //*********************************//
 void getDeviceNumber(bool responseEnabled, bool apiEnabled) {
   int tempDeviceNumber = JOYSTICK_DEVICE;
+
+  if (USB_DEBUG) { Serial.println("DEBUG: getDeviceNumber");}
+
   printResponseInt(responseEnabled, apiEnabled, true, 0, "DN,0", true, tempDeviceNumber);
 
 }
@@ -1647,7 +1718,20 @@ void getJoystickInitialization(bool responseEnabled, bool apiEnabled) {
   int tempCenterPoint[2];
   tempCenterPoint[0]=xNeutral;
   tempCenterPoint[1]=yNeutral;
-  printResponseFloatPointArray(responseEnabled, apiEnabled, true, 0, "IN,0", true, tempCenterPoint);
+
+
+  printResponseIntArray(responseEnabled,        // pass through responseEnabled
+                        apiEnabled,             // pass through apiEnabled
+                        true,                   // responseStatus, 
+                        0,                      // responseNumber
+                        "IN,0",                 // responseCommand
+                        true,                   // responseParameterEnabled,
+                        "",                     // responsePrefix
+                        2,                      // responseParameterSize
+                        ',',                    // responseParameterDelimiter
+                        tempCenterPoint);       // responseParameter[]
+
+
 }
 //***GET JOYSTICK INITIALIZATION API FUNCTION***//
 // Function   : getJoystickInitialization
@@ -1729,16 +1813,24 @@ void getJoystickCalibration(bool responseEnabled, bool apiEnabled) {
   
   int calibrationPointArray[6];
 
-  calibrationPointArray[0]=xMin;
+  calibrationPointArray[0]=xMinimum;
   calibrationPointArray[1]=xNeutral;
-  calibrationPointArray[2]=xMax;
-  calibrationPointArray[3]=yMin;
+  calibrationPointArray[2]=xMaximum;
+  calibrationPointArray[3]=yMinimum;
   calibrationPointArray[4]=yNeutral;
-  calibrationPointArray[5]=yMax;
+  calibrationPointArray[5]=yMaximum;
 
   
-  printResponseFloatPointArray(responseEnabled, apiEnabled, true, 0, "CA,0", true, "", 6, ',', calibrationPointArray);
-
+  printResponseIntArray(responseEnabled,        // pass through responseEnabled
+                        apiEnabled,             // pass through apiEnabled
+                        true,                   // responseStatus, 
+                        0,                      // responseNumber
+                        "CA,0",                 // responseCommand
+                        true,                   // responseParameterEnabled,
+                        "",                     // responsePrefix
+                        6,                      // responseParameterSize
+                        ',',                    // responseParameterDelimiter
+                        calibrationPointArray);       // responseParameter[]
 }
 //***GET JOYSTICK CALIBRATION API FUNCTION***//
 // Function   : getJoystickCalibration
@@ -1771,10 +1863,11 @@ void getJoystickCalibration(bool responseEnabled, bool apiEnabled, String option
 // Return     : void
 //*********************************//
 void setJoystickCalibration(bool responseEnabled, bool apiEnabled) {
-  js.clear();                                                                                           //Clear previous calibration values
-  int stepNumber = 0;
-  canOutputAction = false;
-  calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_CALIB_START_DELAY, performJoystickCalibration, (int *)stepNumber);  //Start the process
+  //todo
+  //js.clear();                                                                                           //Clear previous calibration values
+  //int stepNumber = 0;
+  //canOutputAction = false;
+  //calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_CALIB_START_DELAY, performJoystickCalibration, (int *)stepNumber);  //Start the process
 }
 //***SET JOYSTICK CALIBRATION API FUNCTION***//
 // Function   : setJoystickCalibration
@@ -1981,6 +2074,141 @@ double calcMag(double x, double y) {
   return magnitude;
 }
 
+//***GET OPERATING MODE STATE FUNCTION***//
+// Function   : getOperatingMode
+//
+// Description: This function retrieves the state of operating mode.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : operatingState : intol : The current state of operating mode.
+//*********************************//
+int getOperatingMode(bool responseEnabled, bool apiEnabled) {
+  String commandKey = "OM";
+
+    int tempOperatingMode;
+  // tempOperatingMode = mem.readInt(CONF_SETTINGS_FILE, commandKey);
+  tempOperatingMode = operatingModeFlash.read();
+
+  if ((tempOperatingMode < CONF_OPERATING_MODE_MIN) || (tempOperatingMode > CONF_OPERATING_MODE_MAX)) {
+    tempOperatingMode = CONF_OPERATING_MODE_DEFAULT;
+    // mem.writeInt(CONF_SETTINGS_FILE, commandKey, tempOperatingMode);
+    operatingModeFlash.write(tempOperatingMode);
+  }
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "OM,0", true, tempOperatingMode);
+
+  return tempOperatingMode;
+}
+//***GET OPERATING MODE STATE API FUNCTION***//
+// Function   : getOperatingMode
+//
+// Description: This function is redefinition of main getOperatingMode function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getOperatingMode(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getOperatingMode(responseEnabled, apiEnabled);
+  }
+}
+
+//***SET OPERATING MODE STATE FUNCTION***//
+// Function   : setOperatingMode
+//
+// Description: This function sets the state of operating mode.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               inputOperatingMode : int : The new operating mode state 
+//
+// Return     : void
+//*********************************//
+void setOperatingMode(bool responseEnabled, bool apiEnabled, int inputOperatingMode) {
+  String commandKey = "OM";
+  
+  if (USB_DEBUG) { Serial.println("DEBUG: setOperatingMode");}
+   
+  if ((inputOperatingMode >= CONF_OPERATING_MODE_MIN) && (inputOperatingMode <= CONF_OPERATING_MODE_MAX)) {   
+    // mem.writeInt(CONF_SETTINGS_FILE, commandKey, inputOperatingMode);
+    if (inputOperatingMode != operatingMode){
+      operatingModeFlash.write(inputOperatingMode);
+      delay(FLASH_DELAY_TIME);
+      operatingMode = inputOperatingMode;
+      //changeOperatingMode(inputOperatingMode);
+      softwareReset(); // perform reset if mode changes
+    }
+    printResponseInt(responseEnabled, apiEnabled, true, 0, "OM,1", true, inputOperatingMode);
+  
+  }
+  else {
+    printResponseInt(responseEnabled, apiEnabled, false, 3, "OM,1", true, inputOperatingMode);
+  }
+
+  
+
+}
+//***SET OPERATING MODE STATE API FUNCTION***//
+// Function   : setOperatingMode
+//
+// Description: This function is redefinition of main setOperatingMode function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setOperatingMode(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  setOperatingMode(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+//***SOFT RESET FUNCTION***//
+// Function   : softReset
+//
+// Description: This function performs a software reset.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//***************************//
+void softReset(bool responseEnabled, bool apiEnabled) {
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "SR,1", true, 1);
+  softwareReset();
+
+}
+//***FACTORY RESET API FUNCTION***//
+// Function   : softReset
+//
+// Description: This function is redefinition of main softRest function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void softReset(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 1) {
+    softReset(responseEnabled, apiEnabled);
+  }
+}
 
 //***INITIATE SOFTWARE RESET***//
 // Function   : softwareReset
@@ -1992,8 +2220,11 @@ double calcMag(double x, double y) {
 // Return     : none
 //******************************************//
 void softwareReset() {
+  if (USB_DEBUG) { Serial.println("DEBUG: softwareReset");}
+  
   switch (operatingMode) {
     case MODE_GAMEPAD:            // New mode is Gamepad, active mode is Mouse
+      if (USB_DEBUG) { Serial.println("DEBUG: End mouse");}
       Mouse.release(MOUSE_LEFT);
       Mouse.release(MOUSE_MIDDLE);
       Mouse.release(MOUSE_RIGHT);
@@ -2001,12 +2232,15 @@ void softwareReset() {
       delay(10);
       break;
     case MODE_MOUSE:              // New mode is Mouse, active mode is Gamepad
+    if (USB_DEBUG) { Serial.println("DEBUG: End gamepad");}
       gamepadButtonReleaseAll();
       gamepad.end();
       delay(10);
       break;
   }
+  if (USB_DEBUG) { Serial.println("DEBUG: Attempt reset");}
+  delay(1000);
   
-  NVIC_SystemReset();
+  NVIC_SystemReset();  // Software reset
   delay(10);
 }

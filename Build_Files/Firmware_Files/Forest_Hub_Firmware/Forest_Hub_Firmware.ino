@@ -51,8 +51,6 @@
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
 #define DEFAULT_MODE MODE_MOUSE
-// #define DEFAULT_MODE MODE_GAMEPAD
-
 
 #define CONF_OPERATING_MODE_MIN 0
 #define CONF_OPERATING_MODE_MAX 1
@@ -75,6 +73,8 @@
 #define JOYSTICK_MAX_DEADZONE_LEVEL          10
 #define JOYSTICK_MAX_DEADZONE_VALUE          64             //Out of 127
 #define JOYSTICK_MAX_VALUE                   127
+
+#define JOYSTICK_INPUT_XY_MAX 1023
 
 #define MOUSE_DEFAULT_CURSOR_SPEED_LEVEL     5              // Default cursor speed level
 #define MOUSE_MIN_CURSOR_SPEED_LEVEL         1              //Minimum cursor speed level
@@ -110,13 +110,6 @@ int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
 int slotNumber;      // Slots numbered 1-3 with different settings
 int ledBrightness;
-int xNeutral = 512;
-int yNeutral = 512;
-int xMinimum = 0;
-int yMinimum = 0;
-int xMaximum = 1023;
-int yMaximum = 1203;
-
 
 // Variables stored in Flash Memory
 FlashStorage(isConfiguredFlash, int);
@@ -140,18 +133,30 @@ long lastInteractionUpdate;
 long mPressStartMillis = 0;
 
 //Declare joystick input and output variables
+int rawX;
+int rawY;
 int inputX;
 int inputY;
 int outputX;
 int outputY;
 
+/*
 //Declare joystick calibration variables
 int xMinimum = 0;
-int xMaximum = 1023;
+int xMaximum = JOYSTICK_INPUT_XY_MAX;
 int yMinimum = 0;
-int yMaximum = 1023;
+int yMaximum = JOYSTICK_INPUT_XY_MAX;
 int xNeutral = 512;
 int yNeutral = 512;
+*/
+
+//Declare joystick calibration variables
+int xMinimum;
+int xMaximum;
+int yMinimum;
+int yMaximum;
+int xNeutral;
+int yNeutral;
 
 //Declare switch state variables for each switch
 bool switchS1Pressed;           // Mouse mode = left click
@@ -248,8 +253,6 @@ _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickD
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
-_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
-_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
 _functionList softResetFunction =                 {"SR", "1", "1", &softReset};
 //_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
 //_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
@@ -356,20 +359,19 @@ void setup() {
 
  
   // Turn on indicator light, depending on mode selection
+  leds.clear();
   switch (operatingMode) {
     case MODE_MOUSE:
       led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
-      led_microcontroller.show();
       leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
-      leds.show();
       break;
     case MODE_GAMEPAD:
       led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
-      led_microcontroller.show();
       leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
-      leds.show();
       break;
   }
+  led_microcontroller.show();
+  leds.show();
   updateSlot(slotNumber);
  
   lastInteractionUpdate = millis();  // get first timestamp
@@ -426,10 +428,10 @@ void initMemory() {
     ledBrightness = LED_DEFAULT_BRIGHTNESS;
     xMinimum = 0;
     xNeutral = 512;
-    xMaximum = 1023;
+    xMaximum = JOYSTICK_INPUT_XY_MAX;
     yMinimum = 0;
     yNeutral = 512;
-    yMaximum = 1023;
+    yMaximum = JOYSTICK_INPUT_XY_MAX;
 
     isConfigured = 1;
 
@@ -470,8 +472,8 @@ void initMemory() {
     yMinimum = yMinimumFlash.read();
     yMaximum = yMaximumFlash.read();
 
-    //xNeutralFlash.read();
-    //yNeutralFlash.read();
+    xNeutral = xNeutralFlash.read();
+    yNeutral = yNeutralFlash.read();
 
     delay(FLASH_DELAY_TIME);
   }
@@ -516,8 +518,9 @@ void initJoystick()
 
 void joystickNeutralCalibration() {
 
-  // leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));// Turn LED white
-  // leds.show();
+  leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));// Turn LED white
+  leds.setPixelColor(LED_GAMEPAD, leds.Color(255,255,255));// Turn LED white
+  leds.show();
 
   int tempXNeutral = 0;
   int tempYNeutral = 0;
@@ -531,8 +534,12 @@ void joystickNeutralCalibration() {
   delay(50);
   }
   
-  xNeutral = tempXNeutral / JOYSTICK_NEUTRAL_READINGS;
-  yNeutral = tempYNeutral / JOYSTICK_NEUTRAL_READINGS;
+  int xNeutralRaw = tempXNeutral / JOYSTICK_NEUTRAL_READINGS;
+  int yNeutralRaw = tempYNeutral / JOYSTICK_NEUTRAL_READINGS;
+
+  xNeutral = map(xNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
+  yNeutral = map(yNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
+
   
 
 }
@@ -552,20 +559,20 @@ void joystickNeutralCalibration() {
 void readJoystick() {
 
   //Read analog raw value using ADC
-  inputX = analogRead(PIN_JOYSTICK_X);
-  inputY = analogRead(PIN_JOYSTICK_Y);
+  rawX = analogRead(PIN_JOYSTICK_X);
+  rawY = analogRead(PIN_JOYSTICK_Y);
 
   //Map joystick x and y move values
-  outputX = map(inputX, 0, 1023, -127, 127);   //TODO - MODIFY TO IMPLEMENT CALIBRATION
-  outputY = map(inputY, 0, 1023, -127, 127);
+  inputX = map(rawX, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);   //TODO - MODIFY TO IMPLEMENT CALIBRATION
+  inputY = map(rawY, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
 
-
-
-  //outputY = -outputY;     // To account for backwards Y directions 
+  // Center point and implement neutral calibration
+  outputX = inputX - xNeutral;
+  outputY = inputY - yNeutral;
 
   double outputMag = calcMag(outputX, outputY);
 
-  //Apply radial deadzone *********************************************************************
+  //Apply radial deadzone ************************
   if (outputMag <= currentDeadzoneValue)
   {
     outputX = 0;
@@ -1218,7 +1225,7 @@ void gamepadJoystickMove(int x, int y)
 void mouseJoystickMove(int x, int y)
 {
   // Move the mouse based on current cursor speed
-  Mouse.move(currentMouseCursorSpeedValue * outputX / 127, -currentMouseCursorSpeedValue * outputY / 127, 0); 
+  Mouse.move(currentMouseCursorSpeedValue * outputX / JOYSTICK_MAX_VALUE, -currentMouseCursorSpeedValue * outputY / JOYSTICK_MAX_VALUE, 0); 
   
 }
 
@@ -2192,10 +2199,10 @@ void softReset(bool responseEnabled, bool apiEnabled) {
   softwareReset();
 
 }
-//***FACTORY RESET API FUNCTION***//
+//***SOFT RESET API FUNCTION***//
 // Function   : softReset
 //
-// Description: This function is redefinition of main softRest function to match the types of API function arguments.
+// Description: This function is redefinition of main softReset function to match the types of API function arguments.
 //
 // Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
 //                                        The serial printing is ignored if it's set to false.

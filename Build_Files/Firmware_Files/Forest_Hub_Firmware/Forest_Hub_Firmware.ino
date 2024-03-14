@@ -131,6 +131,7 @@ FlashStorage(yNeutralFlash,int);
 // Timing Variables
 long lastInteractionUpdate;
 long mPressStartMillis = 0;
+long cPressStartMillis = 0;
 
 //Declare joystick input and output variables
 int rawX;
@@ -359,19 +360,7 @@ void setup() {
 
  
   // Turn on indicator light, depending on mode selection
-  leds.clear();
-  switch (operatingMode) {
-    case MODE_MOUSE:
-      led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
-      leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
-      break;
-    case MODE_GAMEPAD:
-      led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
-      leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
-      break;
-  }
-  led_microcontroller.show();
-  leds.show();
+  showModeLED();
   updateSlot(slotNumber);
  
   lastInteractionUpdate = millis();  // get first timestamp
@@ -515,6 +504,23 @@ void initJoystick()
   getJoystickDeadZone(true, false);                                         //Get joystick deadzone stored in memory                                      //Get joystick calibration points stored in flash memory
 }
 
+void showModeLED(){
+  leds.clear();
+  led_microcontroller.clear();
+  switch (operatingMode) {
+    case MODE_MOUSE:
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
+      leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
+      break;
+    case MODE_GAMEPAD:
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
+      leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
+      break;
+  }
+  led_microcontroller.show();
+  leds.show();
+}
+
 
 void joystickNeutralCalibration() {
 
@@ -540,7 +546,8 @@ void joystickNeutralCalibration() {
   xNeutral = map(xNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
   yNeutral = map(yNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
 
-  
+  // Calibration Complete, show mode LED
+  showModeLED();
 
 }
 
@@ -706,8 +713,8 @@ void switchesActions(){
         break;
     }
 
-    
-    slotModeChange();
+    calibrationActions();
+    slotModeChangeActions();
     
 }
 
@@ -836,8 +843,35 @@ void switchesMouseActions() {
   }
 }
 
+//***CALIBRATION ACTIONS FUNCTION**//
+// Function   : calibrationActions
+//
+// Description: This function checks the calibration button to determine if a neutral calibration or extents calibration should take place. 
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+
+void calibrationActions(){
+  if (buttonCPressed){
+   
+    if (!buttonCPrevPressed){ 
+      // button pressed for the first time
+      cPressStartMillis = millis();
+    }
+
+  } else if (buttonCPrevPressed){
+    if ((millis()-cPressStartMillis)>= LONG_PRESS_MILLIS){
+      //TODO: Add full calibration here
+    } else{
+      joystickNeutralCalibration();
+    }
+  }
+}
+
 //***SLOT AND MODE CHANGE FUNCTION**//
-// Function   : slotModeChange
+// Function   : slotModeChangeActions
 //
 // Description: This function checks the mode button and switch to determine if a slot change or mode change should take place. 
 //
@@ -846,7 +880,7 @@ void switchesMouseActions() {
 // Return     : Void
 //*********************************//
 
-void slotModeChange() {
+void slotModeChangeActions() {
   
   
   if (switchSMPressed || buttonMPressed){
@@ -1774,6 +1808,22 @@ void setJoystickInitialization(bool responseEnabled, bool apiEnabled) {
  // int stepNumber = 0;
  // canOutputAction = false;
  // calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_INIT_START_DELAY, performJoystickCenter, (int *)stepNumber);  
+  joystickNeutralCalibration();
+  int tempCenterPoint[2];
+  tempCenterPoint[0]=xNeutral;
+  tempCenterPoint[1]=yNeutral;
+
+
+  printResponseIntArray(responseEnabled,        // pass through responseEnabled
+                        apiEnabled,             // pass through apiEnabled
+                        true,                   // responseStatus, 
+                        0,                      // responseNumber
+                        "IN,1",                 // responseCommand
+                        true,                   // responseParameterEnabled,
+                        "",                     // responsePrefix
+                        2,                      // responseParameterSize
+                        ',',                    // responseParameterDelimiter
+                        tempCenterPoint);       // responseParameter[]
 }
 
 //***SET JOYSTICK INITIALIZATION API FUNCTION***//
@@ -1832,12 +1882,13 @@ void getJoystickCalibration(bool responseEnabled, bool apiEnabled) {
                         apiEnabled,             // pass through apiEnabled
                         true,                   // responseStatus, 
                         0,                      // responseNumber
-                        "CA,0",                 // responseCommand
+                        "CA,1",                 // responseCommand
                         true,                   // responseParameterEnabled,
                         "",                     // responsePrefix
                         6,                      // responseParameterSize
                         ',',                    // responseParameterDelimiter
                         calibrationPointArray);       // responseParameter[]
+
 }
 //***GET JOYSTICK CALIBRATION API FUNCTION***//
 // Function   : getJoystickCalibration

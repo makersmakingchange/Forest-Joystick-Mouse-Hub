@@ -84,7 +84,7 @@
 
 #define JOYSTICK_REACTION_TIME               30             //Minimum time between each action in ms
 #define SWITCH_REACTION_TIME                 100            //Minimum time between each switch action in ms
-#define STARTUP_DELAY_TIME                   5000           //Time to wait on startup
+#define STARTUP_DELAY_TIME                   1000           //Time to wait on startup
 #define FLASH_DELAY_TIME                     5              //Time to wait after reading/writing flash memory
 
 #define SLOW_SCROLL_DELAY                    200            //Minimum time, in ms, between each slow scroll action (number of slow scroll actions defined below)
@@ -366,6 +366,17 @@ void setup() {
   // Turn on indicator light, depending on mode selection
   showModeLED();
   updateSlot(slotNumber);
+
+  tone(PIN_BUZZER, 1047, 500); 
+
+  switch (operatingMode) {
+    case MODE_MOUSE:
+        tone(PIN_BUZZER, 523, 400); 
+      break;
+    case MODE_GAMEPAD:
+        tone(PIN_BUZZER, 1047, 600); 
+      break;
+  }
  
   lastInteractionUpdate = millis();  // get first timestamp
 

@@ -293,7 +293,7 @@ const switchStruct joystickMapping[] {
 
 };
 
-//Slot properties                   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPEDNING IF INIT OR NO
+//Slot properties   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPENDING IF INIT OR NO
 slotStruct mouseSlots[] {
   {0, LED_SLOT0, "Default", 5}, // slot number, Slot LED Number, Slot name, cursor speed
   {1, LED_SLOT1, "Slow",    1},
@@ -541,8 +541,8 @@ void showModeLED(){
 
 void joystickNeutralCalibration() {
 
-  leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));// Turn LED white
-  leds.setPixelColor(LED_GAMEPAD, leds.Color(255,255,255));// Turn LED white
+  leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));  // Turn LED white
+  leds.setPixelColor(LED_GAMEPAD, leds.Color(255,255,255));  // Turn LED white
   leds.show();
 
   int tempXNeutral = 0;
@@ -551,7 +551,7 @@ void joystickNeutralCalibration() {
   const int JOYSTICK_NEUTRAL_READINGS = 10;
 
   for (int i = 0; i < JOYSTICK_NEUTRAL_READINGS ; i++){
-     //Read analog raw value using ADC
+     // Read analog raw value using ADC
   tempXNeutral += analogRead(PIN_JOYSTICK_X);
   tempYNeutral += analogRead(PIN_JOYSTICK_Y);
   delay(50);
@@ -604,11 +604,11 @@ void joystickNeutralCalibration() {
 
 void readJoystick() {
 
-  //Read analog raw value using ADC
+  // Read analog raw value using ADC
   rawX = analogRead(PIN_JOYSTICK_X);
   rawY = analogRead(PIN_JOYSTICK_Y);
 
-  //Map joystick x and y move values
+  // Map joystick x and y move values
   inputX = map(rawX, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);   
   inputY = map(rawY, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
 
@@ -618,7 +618,7 @@ void readJoystick() {
 
   float outputMag = calcMag(centeredX, centeredY);
 
-  //Apply radial deadzone ************************
+  // Apply radial deadzone ************************
   if (outputMag <= currentDeadzoneValue)
   {
     centeredX = 0;
@@ -631,7 +631,7 @@ void readJoystick() {
   }
 
   outputX = map(centeredX, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
-  outputY = map(centeredY, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE); //TODO: Clean this up with more clear vairables names
+  outputY = map(centeredY, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE); //TODO: Clean this up with more clear variable names
 
   //Serial.print(outputX); Serial.print("\t"); Serial.println(outputY);
 }

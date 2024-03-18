@@ -72,9 +72,9 @@
 #define JOYSTICK_MIN_DEADZONE_LEVEL          1
 #define JOYSTICK_MAX_DEADZONE_LEVEL          10
 #define JOYSTICK_MAX_DEADZONE_VALUE          64             //Out of 127
-#define JOYSTICK_MAX_VALUE                   127
+#define JOYSTICK_MAX_VALUE                   128
 
-#define JOYSTICK_INPUT_XY_MAX 1023
+#define JOYSTICK_INPUT_XY_MAX               1023
 
 #define MOUSE_DEFAULT_CURSOR_SPEED_LEVEL     5              // Default cursor speed level
 #define MOUSE_MIN_CURSOR_SPEED_LEVEL         1              //Minimum cursor speed level
@@ -121,10 +121,10 @@ FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
 FlashStorage(slotNumberFlash,int);  // Track index of current settings slot
-FlashStorage(xMinimumFlash,int);
-FlashStorage(xMaximumFlash,int);
-FlashStorage(yMinimumFlash,int);
-FlashStorage(yMaximumFlash,int);
+FlashStorage(xOutputMinimumFlash,int);
+FlashStorage(xOutputMaximumFlash,int);
+FlashStorage(yOutputMinimumFlash,int);
+FlashStorage(yOutputMaximumFlash,int);
 FlashStorage(xNeutralFlash,int);
 FlashStorage(yNeutralFlash,int);
 
@@ -138,26 +138,30 @@ int rawX;
 int rawY;
 int inputX;
 int inputY;
+int centeredX;
+int centeredY;
 int outputX;
 int outputY;
 
 /*
 //Declare joystick calibration variables
-int xMinimum = 0;
-int xMaximum = JOYSTICK_INPUT_XY_MAX;
-int yMinimum = 0;
-int yMaximum = JOYSTICK_INPUT_XY_MAX;
+int xOutputMinimum = 0;
+int xOutputMaximum = JOYSTICK_INPUT_XY_MAX;
+int yOutputMinimum = 0;
+int yOutputMaximum = JOYSTICK_INPUT_XY_MAX;
 int xNeutral = 512;
 int yNeutral = 512;
 */
 
 //Declare joystick calibration variables
-int xMinimum;
-int xMaximum;
-int yMinimum;
-int yMaximum;
+int xOutputMinimum;
+int xOutputMaximum;
+int yOutputMinimum;
+int yOutputMaximum;
 int xNeutral;
 int yNeutral;
+
+float minRange;    // TODO: change this name
 
 //Declare switch state variables for each switch
 bool switchS1Pressed;           // Mouse mode = left click
@@ -415,12 +419,12 @@ void initMemory() {
     operatingMode = DEFAULT_MODE;
     slotNumber = DEFAULT_SLOT;
     ledBrightness = LED_DEFAULT_BRIGHTNESS;
-    xMinimum = 0;
-    xNeutral = 512;
-    xMaximum = JOYSTICK_INPUT_XY_MAX;
-    yMinimum = 0;
-    yNeutral = 512;
-    yMaximum = JOYSTICK_INPUT_XY_MAX;
+    xOutputMinimum = -JOYSTICK_MAX_VALUE;
+    xNeutral = 0;
+    xOutputMaximum = JOYSTICK_MAX_VALUE;
+    yOutputMinimum = -JOYSTICK_MAX_VALUE;
+    yNeutral = 0;
+    yOutputMaximum = JOYSTICK_MAX_VALUE;
 
     isConfigured = 1;
 
@@ -435,12 +439,12 @@ void initMemory() {
     operatingModeFlash.write(operatingMode);
     slotNumberFlash.write(slotNumber);
     ledBrightnessFlash.write(ledBrightness);
-    xMinimumFlash.write(xMinimum);
+    xOutputMinimumFlash.write(xOutputMinimum);
     xNeutralFlash.write(xNeutral);
-    xMaximumFlash.write(xMaximum);
-    yMinimumFlash.write(yMinimum);
+    xOutputMaximumFlash.write(xOutputMaximum);
+    yOutputMinimumFlash.write(yOutputMinimum);
     yNeutralFlash.write(yNeutral);
-    yMaximumFlash.write(yMaximum);
+    yOutputMaximumFlash.write(yOutputMaximum);
 
     isConfiguredFlash.write(isConfigured);
     delay(FLASH_DELAY_TIME);
@@ -456,10 +460,10 @@ void initMemory() {
     cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
     ledBrightness = ledBrightnessFlash.read();
 
-    xMinimum = xMinimumFlash.read();
-    xMaximum = xMaximumFlash.read();
-    yMinimum = yMinimumFlash.read();
-    yMaximum = yMaximumFlash.read();
+    xOutputMinimum = xOutputMinimumFlash.read();
+    xOutputMaximum = xOutputMaximumFlash.read();
+    yOutputMinimum = yOutputMinimumFlash.read();
+    yOutputMaximum = yOutputMaximumFlash.read();
 
     xNeutral = xNeutralFlash.read();
     yNeutral = yNeutralFlash.read();
@@ -546,6 +550,28 @@ void joystickNeutralCalibration() {
   xNeutral = map(xNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
   yNeutral = map(yNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
 
+  // Calculate radius values from diagonals
+  //int rad1 = calcMag((xOutputMaximum - xNeutral), (yOutputMaximum - yNeutral))/sqrt(2.0);
+  //int rad2 = calcMag((xOutputMaximum - xNeutral), (yOutputMinimum - yNeutral))/sqrt(2.0);
+  //int rad3 = calcMag((xOutputMinimum - xNeutral), (yOutputMaximum - yNeutral))/sqrt(2.0);
+  //int rad4 = calcMag((xOutputMinimum - xNeutral), (yOutputMinimum - yNeutral))/sqrt(2.0);
+
+  // Calculate radius values from cardinal directions
+  int rad1 = abs(xOutputMaximum - xNeutral);
+  int rad2 = abs(xOutputMinimum - xNeutral);
+  int rad3 = abs(yOutputMaximum - yNeutral);
+  int rad4 = abs(yOutputMinimum - yNeutral);
+  
+  minRange = min(min(rad1, rad2), min(rad3, rad4)) * 0.95;
+  
+  /*
+  Serial.println(rad1);
+  Serial.println(rad2);
+  Serial.println(rad3);
+  Serial.println(rad4);
+  Serial.println(minRange);
+  */
+  
   // Calibration Complete, show mode LED
   showModeLED();
 
@@ -570,22 +596,44 @@ void readJoystick() {
   rawY = analogRead(PIN_JOYSTICK_Y);
 
   //Map joystick x and y move values
-  inputX = map(rawX, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);   //TODO - MODIFY TO IMPLEMENT CALIBRATION
+  inputX = map(rawX, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);   
   inputY = map(rawY, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
 
   // Center point and implement neutral calibration
-  outputX = inputX - xNeutral;
-  outputY = inputY - yNeutral;
+  centeredX = inputX - xNeutral;
+  centeredY = inputY - yNeutral;
 
-  double outputMag = calcMag(outputX, outputY);
+  float outputMag = calcMag(centeredX, centeredY);
 
   //Apply radial deadzone ************************
   if (outputMag <= currentDeadzoneValue)
   {
-    outputX = 0;
-    outputY = 0;
+    centeredX = 0;
+    centeredY = 0;
+  } else if (outputMag >= minRange)
+  {
+    float thetaVal = atan2(centeredY, centeredX);
+    centeredX = sgn(centeredX) * abs(cos(thetaVal)*minRange);
+    centeredY = sgn(centeredY) * abs(sin(thetaVal)*minRange);
   }
 
+  outputX = map(centeredX, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
+  outputY = map(centeredY, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE); //TODO: Clean this up with more clear vairables names
+
+  //Serial.print(outputX); Serial.print("\t"); Serial.println(outputY);
+}
+
+//*********************************//
+// Function   : sgn 
+// 
+// Description: The sign of float value ( -1 or +1 )
+// 
+// Arguments :  val : float : float input value
+// 
+// Return     : sign : int : sign of float value ( -1 or +1 )
+//*********************************//
+int sgn(float val) {
+  return (0.0 < val) - (val < 0.0);
 }
 
 //***JOYSTICK ACTIONS FUNCTION**//
@@ -1870,12 +1918,12 @@ void getJoystickCalibration(bool responseEnabled, bool apiEnabled) {
   
   int calibrationPointArray[6];
 
-  calibrationPointArray[0]=xMinimum;
+  calibrationPointArray[0]=xOutputMinimum;
   calibrationPointArray[1]=xNeutral;
-  calibrationPointArray[2]=xMaximum;
-  calibrationPointArray[3]=yMinimum;
+  calibrationPointArray[2]=xOutputMaximum;
+  calibrationPointArray[3]=yOutputMinimum;
   calibrationPointArray[4]=yNeutral;
-  calibrationPointArray[5]=yMaximum;
+  calibrationPointArray[5]=yOutputMaximum;
 
   
   printResponseIntArray(responseEnabled,        // pass through responseEnabled

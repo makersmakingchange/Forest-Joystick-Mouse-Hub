@@ -246,24 +246,25 @@ typedef struct {
 _functionList getDeviceNumberFunction =           {"DN", "0", "0", &getDeviceNumber};
 _functionList getModelNumberFunction =            {"MN", "0", "0", &getModelNumber};
 _functionList getVersionNumberFunction =          {"VN", "0", "0", &getVersionNumber};
+_functionList getOperatingModeFunction =          {"OM", "0", "0", &getOperatingMode};
+_functionList setOperatingModeFunction =          {"OM", "1", "",  &setOperatingMode};
 _functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
 _functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
 _functionList getJoystickInitializationFunction = {"IN", "0", "0", &getJoystickInitialization};
 _functionList setJoystickInitializationFunction = {"IN", "1", "1", &setJoystickInitialization};
 _functionList getJoystickCalibrationFunction =    {"CA", "0", "0", &getJoystickCalibration};
 _functionList setJoystickCalibrationFunction =    {"CA", "1", "1", &setJoystickCalibration};
-_functionList getOperatingModeFunction =          {"OM", "0", "0", &getOperatingMode};
-_functionList setOperatingModeFunction =          {"OM", "1", "",  &setOperatingMode};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
+_functionList getJoystickValueFunction =          {"JV", "0", "0", &getJoystickValue};
 _functionList softResetFunction =                 {"SR", "1", "1", &softReset};
 //_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
 //_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
 
 // Declare array of API functions
-_functionList apiFunction[16] = {
+_functionList apiFunction[17] = {
   getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
@@ -279,6 +280,7 @@ _functionList apiFunction[16] = {
   setJoystickDeadZoneFunction,
   getMouseCursorSpeedFunction,
   setMouseCursorSpeedFunction,
+  getJoystickValueFunction,
   softResetFunction
 };
 
@@ -2289,6 +2291,56 @@ void setOperatingMode(bool responseEnabled, bool apiEnabled, int inputOperatingM
 // Return     : void
 void setOperatingMode(bool responseEnabled, bool apiEnabled, String optionalParameter) {
   setOperatingMode(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+//***GET JOYSTICK VALUE FUNCTION***//
+// Function   : getJoystickValue
+//
+// Description: This function returns raw joystick value.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getJoystickValue(bool responseEnabled, bool apiEnabled) {
+  readJoystick(); // Measure and calculate new joystick reading
+
+  const int outputArraySize = 8;
+  int tempJoystickArray[outputArraySize];
+  tempJoystickArray[0] = rawX;
+  tempJoystickArray[1] = rawY;
+
+  tempJoystickArray[2] = inputX;
+  tempJoystickArray[3] = inputY;
+
+  tempJoystickArray[4] = centeredX;
+  tempJoystickArray[5] = centeredY;
+
+  tempJoystickArray[6] = outputX;
+  tempJoystickArray[7] = outputY;
+
+  printResponseIntArray(responseEnabled, apiEnabled, true, 0, "JV,0", true, "", outputArraySize, ',', tempJoystickArray);
+  
+}
+//***GET JOYSTICK VALUE API FUNCTION***//
+// Function   : getJoystickValue
+//
+// Description: This function is redefinition of main getJoystickValue function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getJoystickValue(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getJoystickValue(responseEnabled, apiEnabled);
+  }
 }
 
 //***SOFT RESET FUNCTION***//

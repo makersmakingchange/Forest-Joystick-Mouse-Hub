@@ -92,6 +92,16 @@
 #define FAST_SCROLL_DELAY                    60             //Minimum time, in ms, between each fast scroll action (higher delay = slower scroll speed)
 #define SLOW_SCROLL_NUM                      10             //Number of times to scroll at the slow scroll rate
 
+const int MODE_START_TONE = 880;
+const int MODE_MOUSE_TONE = 523;
+const int MODE_GAMEPAD_TONE = 1047;
+const int MODE_START_TONE_LENGTH = 500;
+const int MODE_MOUSE_TONE_LENGTH = 400;
+const int MODE_GAMEPAD_TONE_LENGTH = 600;
+const int SLOT_TONE = 1319;
+const int SLOT_TONE_LENGTH = 200;
+const int SLOT_TONE_DELAY = 300;
+
 
 //Define model number and version number
 #define JOYSTICK_DEVICE                       1                
@@ -370,14 +380,15 @@ void setup() {
   showModeLED();
   updateSlot(slotNumber);
 
-  tone(PIN_BUZZER, 1047, 500); 
+
+  tone(PIN_BUZZER, MODE_START_TONE, MODE_START_TONE_LENGTH); 
 
   switch (operatingMode) {
     case MODE_MOUSE:
-        tone(PIN_BUZZER, 523, 400); 
+        tone(PIN_BUZZER, MODE_MOUSE_TONE, MODE_MOUSE_TONE_LENGTH); 
       break;
     case MODE_GAMEPAD:
-        tone(PIN_BUZZER, 1047, 600); 
+        tone(PIN_BUZZER, MODE_GAMEPAD_TONE, MODE_GAMEPAD_TONE); 
       break;
   }
  
@@ -1034,7 +1045,7 @@ void incrementSlot(){
     newSlotNumber = SLOT_MIN_NUMBER;
   }
 
-  setSlotNumber(false,false,newSlotNumber);
+  setSlotNumber(false, false, newSlotNumber);
 }
 
 //***UPDATE SLOT NUMBER FUNCTION**//
@@ -1060,6 +1071,13 @@ void updateSlot(int newSlotNumber){
     // Turn on indicator light for current slot
   leds.setPixelColor(mouseSlots[newSlotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
   leds.show();
+
+  // Play sound
+  for (int i = 0; i < newSlotNumber; i++){
+    tone(PIN_BUZZER, SLOT_TONE, SLOT_TONE_LENGTH);
+    delay(SLOT_TONE_DELAY);
+  }
+
 
   //Update global variable.
   slotNumber = newSlotNumber;

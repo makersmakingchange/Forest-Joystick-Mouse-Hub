@@ -59,7 +59,7 @@
 
 #define DEFAULT_SLOT      0
 
-#define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
+#define UPDATE_INTERVAL   20 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
 
 #define LONG_PRESS_MILLIS  3000 // time, in milliseconds, for a mode change to occur
@@ -73,15 +73,15 @@
 #define JOYSTICK_MIN_DEADZONE_LEVEL          1
 #define JOYSTICK_MAX_DEADZONE_LEVEL          10
 #define JOYSTICK_MAX_DEADZONE_VALUE          64             //Out of 127
-#define JOYSTICK_MAX_VALUE                   128
+#define JOYSTICK_MAX_VALUE                   127
 
 #define JOYSTICK_INPUT_XY_MAX               1023
 
 #define MOUSE_DEFAULT_CURSOR_SPEED_LEVEL     5              // Default cursor speed level
 #define MOUSE_MIN_CURSOR_SPEED_LEVEL         1              //Minimum cursor speed level
 #define MOUSE_MAX_CURSOR_SPEED_LEVEL         10             //Maxium cursor speed level
-#define MOUSE_MIN_CURSOR_SPEED_VALUE         1              //Minimum cursor speed value [pixels per update]
-#define MOUSE_MAX_CURSOR_SPEED_VALUE         10
+#define MOUSE_MIN_CURSOR_SPEED_VALUE         4              //Minimum cursor speed value [pixels per update]
+#define MOUSE_MAX_CURSOR_SPEED_VALUE         40
 
 #define JOYSTICK_REACTION_TIME               30             //Minimum time between each action in ms
 #define SWITCH_REACTION_TIME                 100            //Minimum time between each switch action in ms
@@ -1340,7 +1340,7 @@ void mouseJoystickMove(int x, int y)
 {
   // Move the mouse based on current cursor speed
   Mouse.move(currentMouseCursorSpeedValue * outputX / JOYSTICK_MAX_VALUE, -currentMouseCursorSpeedValue * outputY / JOYSTICK_MAX_VALUE, 0); 
-  
+  //Serial.println(currentMouseCursorSpeedValue * outputX / JOYSTICK_MAX_VALUE);
 }
 
 

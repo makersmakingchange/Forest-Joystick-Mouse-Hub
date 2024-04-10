@@ -205,6 +205,8 @@ bool switchSMPrevPressed = false;
 bool buttonCPrevPressed  = false;
 bool buttonMPrevPressed  = false;
 
+bool scrollModeOn = false;
+
 // Theoretical voltages for multi-button analog resistor network
 // SM_Switch - Mode Switch - Calib Switch
 // voltages v000 = voltage when off-off-off
@@ -970,33 +972,40 @@ void switchesMouseActions() {
     Mouse.release(MOUSE_RIGHT);
   }
 
-  if (switchS4Pressed) {
-    int counter = 0;
+  if (switchS4Pressed && !switchS4PrevPressed) {
+    int scrollCounter = 0;
+    scrollModeOn = true;
+    
     //change colour of neopixel to indicate entering scroll mode?
-    while (switchS4Pressed) {
-
+    while (scrollModeOn) {
+      
       readJoystick();
       readSwitches();
 
       if (outputY > 0) {
         Mouse.move(0, 0, 1);                  // Scroll up
-        counter++;
+        scrollCounter++;
       }
       else if (outputY < 0) {
         Mouse.move(0, 0, -1);                 //Scroll down
-        counter++;
+        scrollCounter++;
       } else if (outputY == 0) {
-        counter = 0;
+        scrollCounter = 0;
       }
 
-      if (counter == 0) {
+      if (scrollCounter == 0) {
         delay(2);                             // low delay before any scroll actions have been completed, continue to read switches and joystick
-      } else if (counter == 1) {
+      } else if (scrollCounter == 1) {
         delay(500);                           // long delay after first scroll action, to allow user to do single scroll
-      } else if (counter < SLOW_SCROLL_NUM) {
+      } else if (scrollCounter < SLOW_SCROLL_NUM) {
         delay(SLOW_SCROLL_DELAY);             // first 10 scroll actions are slower (have longer delay) to allow precise scrolling
       } else {
         delay(FAST_SCROLL_DELAY);             // scroll actions after first 10 are faster (have less delay) to allow fast scrolling
+      }
+
+      if (switchS4Pressed && !switchS4PrevPressed){
+        scrollModeOn = false;
+        //change colour of neopixel to indicate exiting scroll mode?
       }
 
     }

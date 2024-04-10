@@ -284,8 +284,8 @@ _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCurs
 _functionList getJoystickValueFunction =          {"JV", "0", "0", &getJoystickValue};
 _functionList getLedBrightnessFunction =          {"LB", "0", "",  &getLedBrightness};
 _functionList setLedBrightnessFunction =          {"LB", "1", "",  &setLedBrightness};
-_functionList getLedColorFunction =               {"LC", "0", "0", &setLedColor};
-_functionList setLedColorFunction =               {"LC", "1", "",  &setLedColor};
+_functionList getLedColorFunction =               {"LC", "0", "0", &getLedColorR};
+_functionList setLedColorFunction =               {"LC", "1", "",  &setLedColorR};
 _functionList softResetFunction =                 {"SR", "1", "1", &softReset};
 
 
@@ -354,7 +354,7 @@ void setup() {
   initLeds();  // Initialize Neopixel and microcontroller LEDs
   waitLeds();  // Turn all Neopixels red and microcontroller white
   initPins();  // Initialize input and output pins
-  tone(PIN_BUZZER, MODE_START_TONE, MODE_START_TONE_LENGTH); 
+  //tone(PIN_BUZZER, MODE_START_TONE, MODE_START_TONE_LENGTH); 
   //delay(2000);
  
     // Begin HID gamepad or mouse, depending on mode selection

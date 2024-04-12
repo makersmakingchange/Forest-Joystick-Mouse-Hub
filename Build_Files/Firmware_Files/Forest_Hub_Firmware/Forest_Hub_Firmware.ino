@@ -122,6 +122,9 @@ const int MODE_GAMEPAD_TONE_LENGTH = 600;
 const int SLOT_TONE = 1319;
 const int SLOT_TONE_LENGTH = 200;
 const int SLOT_TONE_DELAY = 300;
+const int SCROLL_START_TONE = 2093;
+const int SCROLL_END_TONE = 2637;
+const int SCROLL_TONE_LENGTH = 200;
 
 XACGamepad gamepad;   //Starts an instance of the USB gamepad object
 
@@ -975,8 +978,13 @@ void switchesMouseActions() {
   if (switchS4Pressed && !switchS4PrevPressed) {
     int scrollCounter = 0;
     scrollModeOn = true;
-    
-    //change colour of neopixel to indicate entering scroll mode?
+
+    // Turn mouse mode Neopixel white to indicate scroll mode
+    leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));  // Turn LED white
+    leds.show();
+
+    tone(PIN_BUZZER, SCROLL_START_TONE, SCROLL_TONE_LENGTH); 
+ 
     while (scrollModeOn) {
       
       readJoystick();
@@ -1012,6 +1020,9 @@ void switchesMouseActions() {
   } else if (!switchS4Pressed && switchS4PrevPressed) {
     //action on release
     //change colour of neopixel to indicate exiting scroll mode?
+    leds.setPixelColor(LED_MOUSE, leds.Color(ledColorR, ledColorG, ledColorB));  // Turn LED to user color
+    leds.show();
+    tone(PIN_BUZZER, SCROLL_END_TONE, SCROLL_TONE_LENGTH); 
   }
 }
 

@@ -1,6 +1,14 @@
-Version 2.1 | 2024-Mar-XX
+Version 2.1 | 2024-April-17
  - Firmware
-  - Added neutral calibration
+   - Added neutral calibration
+ - Documentation
+   - Maker Guide
+     - Updated assembly photos with new PCB
+   - User Guide
+     - Expanded, with more details
+     - Includes features from firmware version 2.1
+     - New input mapping table 
+     - Includes connection diagrams
 
 
 

@@ -6,8 +6,9 @@ The device is comprised of a custom printed circuit board, off-the-shelf electro
 
 The Forest Hub is open assistive technology (OpenAT). Under the terms of the open source licenses, the device may be built, used, and improved upon by anyone.
 
-Last updated: 2024-Feb-21
-An updated version of the PCB and enclosure has been released (V2.0.1, 2024-Feb-20). The last version of the Forest Hub (v1.0) has been built and tested.
+Last updated: 2024-Apr-17
+The latest version (V2.1) includes a new easier to use LED jig, updated firmware with center calibration, and updated documentation.
+An updated version of the PCB and enclosure has been released (V2.0.1, 2024-Feb-20). The last version of the Forest Hub (v2.0.1) has been built and tested.
 
 <img src="Photos/Forest_Hub.png" width="500" alt="A Forest Hub in a red enclosure.">
 
@@ -62,11 +63,11 @@ Reference the Assembly Guide section in the [Maker Guide](/Documentation/Forest_
 ### Documentation
 | Document             | Version | Link |
 |----------------------|---------|------|
-| Design Rationale     | 1.0     | [Forest_Hub_Design_Rationale](/Documentation/Forest_Hub_Design_Rationale.pdf)     |
-| Maker Guide          | 1.0     | [Forest_Hub_Maker_Guide](/Documentation/Forest_Hub_Maker_Guide.pdf)     |
-| Bill of Materials    | 1.01     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
-| User Guide           | 1.0     | [Forest_Hub_User_Guide](/Documentation/Forest_Hub_User_Guide.pdf)    |
-| Changelog            | 1.0     | [Changes](Changes.txt)     |
+| Design Rationale     | 2.1     | [Forest_Hub_Design_Rationale](/Documentation/Forest_Hub_Design_Rationale.pdf)     |
+| Maker Guide          | 2.1     | [Forest_Hub_Maker_Guide](/Documentation/Forest_Hub_Maker_Guide.pdf)     |
+| Bill of Materials    | 2.1     | [Forest_Hub_Bill_of_Materials](/Documentation/Forest_Hub_BOM.csv)     |
+| User Guide           | 2.1     | [Forest_Hub_User_Guide](/Documentation/Forest_Hub_User_Guide.pdf)    |
+| Changelog            | 2.1     | [Changes](Changes.txt)     |
 
 ### Design Files
  - [CAD design Files](/Design_Files/CAD_Design_Files)
@@ -103,7 +104,7 @@ The concept for the Forest Hub was based on the [Enabled Controller Mini](https:
 ### Contributors
 - Jake McIvor, Neil Squire Society. Concept generation, enclosure design, schematic and PCB design, coding, documentation, testing.
 - Milad Ha, Neil Squire Society. Schematic and PCB design, coding.
-- Josie Versloot, Neil Squire Society. Concept generation, coding.
+- Josie Versloot, Neil Squire Society. Concept generation, coding, documentation.
 - Derrick Andrews, Neil Squire Society. Schematic design.
 - Stephen Moyer, Neil Squire Society. Concept generation.
 - Tyler Fentie, Neil Squire Society. Concept generation

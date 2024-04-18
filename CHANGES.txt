@@ -1,6 +1,13 @@
-Version 2.1 | 2024-Mar-XX
+Version 2.1 | 2024-Apr-17
  - Firmware
   - Added neutral calibration
+ - User Guide
+  - Added neutral calibration / center reset information
+ - Maker Guide
+  - Updated PCB images
+  - Better description of LED installation
+ - CAD
+  - Modified LED Spacer for easier installation
 
 
 
@@ -14,8 +21,6 @@ Version 2.0.1 | 2024-Feb-21
    - Add value for R5
    - Cleaned up top silkscreen on PCB
    - Removed polarity markers from speaker footprint
-- Firmware
-
 
 
 Version 2.0 | 2024-Jan-15

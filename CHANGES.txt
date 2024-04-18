@@ -2,14 +2,15 @@ Version 2.1 | 2024-Apr-17
  - Firmware
   - Added neutral calibration
  - User Guide
-  - Added neutral calibration / center reset information
+     - Expanded, with more details
+     - Includes features from firmware version 2.1
+     - New input mapping table 
+     - Includes connection diagrams
  - Maker Guide
   - Updated PCB images
   - Better description of LED installation
  - CAD
   - Modified LED Spacer for easier installation
-
-
 
 Version 2.0.1 | 2024-Feb-21
  - BOM

@@ -1,3 +1,17 @@
+Version 2.1 | 2024-Apr-17
+ - Firmware
+  - Added neutral calibration
+ - User Guide
+     - Expanded, with more details
+     - Includes features from firmware version 2.1
+     - New input mapping table 
+     - Includes connection diagrams
+ - Maker Guide
+  - Updated PCB images
+  - Better description of LED installation
+ - CAD
+  - Modified LED Spacer for easier installation
+
 Version 2.0.1 | 2024-Feb-21
  - BOM
    - Fixed labels for R2, R5, R6
@@ -8,8 +22,6 @@ Version 2.0.1 | 2024-Feb-21
    - Add value for R5
    - Cleaned up top silkscreen on PCB
    - Removed polarity markers from speaker footprint
-- Firmware
-
 
 
 Version 2.0 | 2024-Jan-15

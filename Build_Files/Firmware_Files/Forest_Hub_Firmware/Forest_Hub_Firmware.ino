@@ -2,7 +2,7 @@
   File: OpenAT_Joystick_Software.ino
   Software: OpenAT Joystick Plus 4 Switches, with both USB gamepad and mouse funtionality.
   Developed by: Makers Making Change
-  Version: V2.0(20 February 2024)
+  Version: V2.1.rc1 (XX March 2024)
   License: GPL v3
 
   Copyright (C) 2023-2024 Neil Squire Society
@@ -15,15 +15,23 @@
   You should have received a copy of the GNU General Public License along with this program.
   If not, see <http://www.gnu.org/licenses/>
 */
+#include <Arduino.h>
 #include "XACGamepad.h"
 #include "OpenAT_Joystick_Response.h"
 #include <FlashStorage.h> // Non-volatile memory for storing settings
 #include <TinyUSB_Mouse_and_Keyboard.h> // Library to allow mouse and keyboard to work using TinyUSB
-#include <WiiChuck.h> //Nunchuck communication
-#include <Adafruit_NeoPixel.h> //Lights on QtPy
+#include <WiiChuck.h> // Nunchuck communication
+#include <Adafruit_NeoPixel.h> // Lights on QtPy
 
 
-#define USB_DEBUG  1 // Set this to 0 for best performance.
+#define USB_DEBUG  0 // Set this to 0 for best performance.
+
+
+//Define model number and version number
+#define JOYSTICK_DEVICE   1                
+#define JOYSTICK_MODEL    1
+#define JOYSTICK_VERSION  2
+
 
 // ==================== Pin Assignment =================
 
@@ -31,77 +39,97 @@
 #define PIN_JOYSTICK_Y    A1
 #define PIN_SW_S1         A2
 #define PIN_SW_S2         A3
-#define PIN_SW_S3         A6 //TX
-#define PIN_SW_S4         A10 //MO
-#define PIN_BUTTON        A9 //MI
-#define PIN_LEDS          A7 //RX
-#define PIN_BUZZER        A8 //SCK
+#define PIN_SW_S3         A6  // TX on PCB
+#define PIN_SW_S4         A10 // MO on PCB
+#define PIN_BUTTON        A9  // MI on PCB
+#define PIN_LEDS          A7  // RX on PCB
+#define PIN_BUZZER        A8  // SCK on PCB
 
 
 // 5 Neopixels connected in series
-#define LED_SLOT0         5 // Non-existent Neopixel for no light
-#define LED_SLOT1         2 // Neopixel LED number 2 //L3
-#define LED_SLOT2         1 // Neopixel LED number 1 //L2
-#define LED_SLOT3         0 // Neopixel LED number 0 //L1
-#define LED_GAMEPAD       4 // Neopixel LED number
-#define LED_MOUSE         3 // Neopixel LED number
+#define LED_SLOT0         5  // Non-existent Neopixel for no light
+#define LED_SLOT1         2  // Neopixel index for slot 1   // L3 on PCB
+#define LED_SLOT2         1  // Neopixel index for slot 2   // L2 on PCB
+#define LED_SLOT3         0  // Neopixel index for slot 3   // L1 on PCB
+#define LED_GAMEPAD       4  // Neopixel index for gamepad  // L5 on PCB
+#define LED_MOUSE         3  // Neopixel index for mouse    // L4 on PCB
+#define LED_MICRO         0  // Index of Neopixel on QTPY microcontroller
 #define LED_DEFAULT_BRIGHTNESS 50
-
+#define CONF_LED_COLOR_R_DEFAULT     255 // Default LED red channel
+#define CONF_LED_COLOR_G_DEFAULT     0  // Default LED green channel
+#define CONF_LED_COLOR_B_DEFAULT     0  // Default LED blue channel
+#define LED_NUM_PIXELS    5  // number of neopixels
+#define CONF_LED_COLOR_MIN 0 // Minimum LED color value
+#define CONF_LED_COLOR_MAX 255  // Maximum LED color value
+#define CONF_LED_COLOR_DEFAULT 125 // default
 
 #define MODE_MOUSE 1
 #define MODE_GAMEPAD 0
 #define DEFAULT_MODE MODE_MOUSE
-// #define DEFAULT_MODE MODE_GAMEPAD
-
 
 #define CONF_OPERATING_MODE_MIN 0
 #define CONF_OPERATING_MODE_MAX 1
 #define CONF_OPERATING_MODE_DEFAULT DEFAULT_MODE
 
-#define DEFAULT_SLOT 0
+#define CONF_LED_BRIGHTNESS_MIN 0
+#define CONF_LED_BRIGHTNESS_MAX 255
+#define CONF_LED_BRIGHTNESS_DEFAULT 127
 
-#define UPDATE_INTERVAL   5 // TBD Update interval for perfoming HID actions (in milliseconds)
+#define CONF_LED_MIN 0
+#define CONF_LED_MAX 255
+
+
+
+#define UPDATE_INTERVAL   20 // TBD Update interval for perfoming HID actions (in milliseconds)
 #define DEFAULT_DEBOUNCING_TIME 5
 
 #define LONG_PRESS_MILLIS  3000 // time, in milliseconds, for a mode change to occur
 
-#define SLOT_DEFAULT_NUMBER                   0             // Default slot number
-#define SLOT_MIN_NUMBER                       0             // Minimum slot number
-#define SLOT_MAX_NUMBER                       3             // Maxium slot number
+#define SLOT_DEFAULT_NUMBER                  0             // Default slot number
+#define SLOT_MIN_NUMBER                      0             // Minimum slot number
+#define SLOT_MAX_NUMBER                      3             // Maxium slot number
 
-
-#define JOYSTICK_DEFAULT_DEADZONE_LEVEL      2              //Joystick deadzone
-#define JOYSTICK_MIN_DEADZONE_LEVEL          1
+#define JOYSTICK_DEFAULT_DEADZONE_LEVEL      2              // Joystick deadzone
+#define JOYSTICK_MIN_DEADZONE_LEVEL          1  
 #define JOYSTICK_MAX_DEADZONE_LEVEL          10
-#define JOYSTICK_MAX_DEADZONE_VALUE          64             //Out of 127
-#define JOYSTICK_MAX_VALUE                   127
+#define JOYSTICK_MAX_DEADZONE_VALUE          64             // Out of 127
+#define JOYSTICK_MAX_VALUE                   127            // Maximum value for joystick output
+
+#define JOYSTICK_INPUT_XY_MAX                1023            // Maximum sensor reading of joystick digitized voltage
+#define JOYSTICK_NEUTRAL_DEFAULT             511             // Expected digitized analog voltage of joystick x channel when centered (511)
 
 #define MOUSE_DEFAULT_CURSOR_SPEED_LEVEL     5              // Default cursor speed level
-#define MOUSE_MIN_CURSOR_SPEED_LEVEL         1              //Minimum cursor speed level
-#define MOUSE_MAX_CURSOR_SPEED_LEVEL         10             //Maxium cursor speed level
-#define MOUSE_MIN_CURSOR_SPEED_VALUE         1              //Minimum cursor speed value [pixels per update]
-#define MOUSE_MAX_CURSOR_SPEED_VALUE         10
+#define MOUSE_MIN_CURSOR_SPEED_LEVEL         1              // Minimum cursor speed level
+#define MOUSE_MAX_CURSOR_SPEED_LEVEL         10             // Maxium cursor speed level
+#define MOUSE_MIN_CURSOR_SPEED_VALUE         4              // Minimum cursor speed value [pixels per update]
+#define MOUSE_MAX_CURSOR_SPEED_VALUE         40
 
-#define JOYSTICK_REACTION_TIME               30             //Minimum time between each action in ms
-#define SWITCH_REACTION_TIME                 100            //Minimum time between each switch action in ms
-#define STARTUP_DELAY_TIME                   5000           //Time to wait on startup
-#define FLASH_DELAY_TIME                     5              //Time to wait after reading/writing flash memory
+#define JOYSTICK_REACTION_TIME               30             // Minimum time between each action in ms
+#define SWITCH_REACTION_TIME                 100            // Minimum time between each switch action in ms
+#define STARTUP_DELAY_TIME                   1000           // Time to wait on startup
+#define FLASH_DELAY_TIME                     5              // Time to wait after reading/writing flash memory
 
-#define SLOW_SCROLL_DELAY                    200            //Minimum time, in ms, between each slow scroll action (number of slow scroll actions defined below)
-#define FAST_SCROLL_DELAY                    60             //Minimum time, in ms, between each fast scroll action (higher delay = slower scroll speed)
-#define SLOW_SCROLL_NUM                      10             //Number of times to scroll at the slow scroll rate
+#define SLOW_SCROLL_DELAY                    200            // Minimum time, in ms, between each slow scroll action (number of slow scroll actions defined below)
+#define FAST_SCROLL_DELAY                    60             // Minimum time, in ms, between each fast scroll action (higher delay = slower scroll speed)
+#define SLOW_SCROLL_NUM                      10             // Number of times to scroll at the slow scroll rate
 
-
-//Define model number and version number
-#define JOYSTICK_DEVICE                       1                
-#define JOYSTICK_MODEL                        1
-#define JOYSTICK_VERSION                      2
-
+const int MODE_START_TONE = 880;
+const int MODE_MOUSE_TONE = 523;
+const int MODE_GAMEPAD_TONE = 1047;
+const int MODE_START_TONE_LENGTH = 500;
+const int MODE_MOUSE_TONE_LENGTH = 400;
+const int MODE_GAMEPAD_TONE_LENGTH = 600;
+const int SLOT_TONE = 1319;
+const int SLOT_TONE_LENGTH = 200;
+const int SLOT_TONE_DELAY = 300;
+const int SCROLL_START_TONE = 2093;
+const int SCROLL_END_TONE = 2637;
+const int SCROLL_TONE_LENGTH = 200;
 
 XACGamepad gamepad;   //Starts an instance of the USB gamepad object
 
 //Declare variables for settings
-int isConfigured;
+bool isConfigured;
 int deviceNumber;
 int modelNumber;
 int versionNumber;
@@ -109,11 +137,13 @@ int deadzoneLevel;
 int cursorSpeedLevel; // 1-10 cursor speed levels
 int operatingMode;   // 1 = Mouse mode, 0 = Joystick Mode 
 int slotNumber;      // Slots numbered 1-3 with different settings
-int ledBrightness;
-
+int ledColorR = CONF_LED_COLOR_R_DEFAULT;  // User color - red
+int ledColorG = CONF_LED_COLOR_G_DEFAULT;  // User color - green
+int ledColorB = CONF_LED_COLOR_B_DEFAULT;  // User color - blue 
+int ledBrightness;  // Neopixel LED brightness
 
 // Variables stored in Flash Memory
-FlashStorage(isConfiguredFlash, int);
+FlashStorage(isConfiguredFlash, bool);
 FlashStorage(deviceNumberFlash,int);
 FlashStorage(modelNumberFlash, int);
 FlashStorage(versionNumberFlash, int);
@@ -122,41 +152,52 @@ FlashStorage(cursorSpeedLevelFlash, int);
 FlashStorage(operatingModeFlash, int);
 FlashStorage(ledBrightnessFlash,int);
 FlashStorage(slotNumberFlash,int);  // Track index of current settings slot
-FlashStorage(xMinimumFlash,int);
-FlashStorage(xMaximumFlash,int);
-FlashStorage(yMinimumFlash,int);
-FlashStorage(yMaximumFlash,int);
-FlashStorage(xNeutralFlash,int);
-FlashStorage(yNeutralFlash,int);
+FlashStorage(xOutputMinimumFlash,int);  // Calibration
+FlashStorage(xOutputMaximumFlash,int);  // Calibration
+FlashStorage(yOutputMinimumFlash,int);  // Calibration
+FlashStorage(yOutputMaximumFlash,int);  // Calibration
+FlashStorage(xNeutralFlash,int);  // Calibration
+FlashStorage(yNeutralFlash,int);  // Calibration
+
+FlashStorage(ledColorRFlash,int);  // User LED color - red
+FlashStorage(ledColorGFlash,int);  // User LED color - green
+FlashStorage(ledColorBFlash,int);  // User LED color - blue
 
 // Timing Variables
 long lastInteractionUpdate;
 long mPressStartMillis = 0;
+long cPressStartMillis = 0;
 
 //Declare joystick input and output variables
+int rawX = JOYSTICK_INPUT_XY_MAX/2; // Raw digitized analog voltage of joystick x channel (511)
+int rawY = JOYSTICK_INPUT_XY_MAX/2; // Raw digitized analog voltage of joystick y channel (511)
 int inputX;
 int inputY;
+int centeredX;
+int centeredY;
 int outputX;
 int outputY;
 
 //Declare joystick calibration variables
-int xMinimum = 0;
-int xMaximum = 1023;
-int yMinimum = 0;
-int yMaximum = 1023;
-int xNeutral = 512;
-int yNeutral = 512;
+int xOutputMinimum = 0;  // Minimum digitized analog voltage of joystick x channel
+int yOutputMinimum = 0;  // Minimum digitized analog voltage of joystick y channel
+int xOutputMaximum = JOYSTICK_INPUT_XY_MAX;  // Maximum digitized analog voltage of joystick x channel (1023)
+int yOutputMaximum = JOYSTICK_INPUT_XY_MAX;  // Maximum digitized analog voltage of joystick y channel (1023)
+int xNeutral = JOYSTICK_NEUTRAL_DEFAULT; //  Expected digitized analog voltage of joystick x channel when centered (511)
+int yNeutral = JOYSTICK_NEUTRAL_DEFAULT; //  Expected digitized analog voltage of joystick y channel when centered (511)
 
-//Declare switch state variables for each switch
-bool switchS1Pressed;           // Mouse mode = left click
-bool switchS2Pressed;           // Mouse mode = scroll mode
-bool switchS3Pressed;           // Mouse mode = right click
-bool switchS4Pressed;           // Mouse mode = middle click
-bool switchSMPressed;
-bool buttonCPressed;
-bool buttonMPressed;
+float minRange;    // TODO: change this name
 
 bool isModeChanging;
+
+//Declare switch state variables for each switch
+bool switchS1Pressed = false;           // Mouse mode = left click
+bool switchS2Pressed= false;            // Mouse mode = scroll mode
+bool switchS3Pressed= false;            // Mouse mode = right click
+bool switchS4Pressed= false;            // Mouse mode = middle click
+bool switchSMPressed= false; 
+bool buttonCPressed= false; 
+bool buttonMPressed= false; 
 
 //Previous status of switches
 bool switchS1PrevPressed = false;
@@ -166,6 +207,8 @@ bool switchS4PrevPressed = false;
 bool switchSMPrevPressed = false;
 bool buttonCPrevPressed  = false;
 bool buttonMPrevPressed  = false;
+
+bool scrollModeOn = false;
 
 // Theoretical voltages for multi-button analog resistor network
 // SM_Switch - Mode Switch - Calib Switch
@@ -178,6 +221,7 @@ const int v100 = 418;
 const int v101 = 327;
 const int v110 = 185;
 const int v111 = 0;
+// thresholds
 const int t001 = (v000+v001)/2;
 const int t010 = (v001+v010)/2;
 const int t011 = (v010+v011)/2;
@@ -232,42 +276,58 @@ _functionList getModelNumberFunction =            {"MN", "0", "0", &getModelNumb
 _functionList getVersionNumberFunction =          {"VN", "0", "0", &getVersionNumber};
 _functionList getOperatingModeFunction =          {"OM", "0", "0", &getOperatingMode};
 _functionList setOperatingModeFunction =          {"OM", "1", "",  &setOperatingMode};
+_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
+_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
+_functionList getJoystickInitializationFunction = {"IN", "0", "0", &getJoystickInitialization};
+_functionList setJoystickInitializationFunction = {"IN", "1", "1", &setJoystickInitialization};
+_functionList getJoystickCalibrationFunction =    {"CA", "0", "0", &getJoystickCalibration};
+_functionList setJoystickCalibrationFunction =    {"CA", "1", "1", &setJoystickCalibration};
 _functionList getJoystickDeadZoneFunction =       {"DZ", "0", "0", &getJoystickDeadZone};
 _functionList setJoystickDeadZoneFunction =       {"DZ", "1", "",  &setJoystickDeadZone};
 _functionList getMouseCursorSpeedFunction =       {"SS", "0", "0", &getMouseCursorSpeed};
 _functionList setMouseCursorSpeedFunction =       {"SS", "1", "",  &setMouseCursorSpeed};
-_functionList getSlotNumberFunction =             {"SN", "0", "0", &getSlotNumber};
-_functionList setSlotNumberFunction =             {"SN", "1", "",  &setSlotNumber};
+_functionList getJoystickValueFunction =          {"JV", "0", "0", &getJoystickValue};
+_functionList getLedBrightnessFunction =          {"LB", "0", "",  &getLedBrightness};
+_functionList setLedBrightnessFunction =          {"LB", "1", "",  &setLedBrightness};
+_functionList getLedColorFunction =               {"LC", "0", "0", &getLedColorR};
+_functionList setLedColorFunction =               {"LC", "1", "",  &setLedColorR};
 _functionList softResetFunction =                 {"SR", "1", "1", &softReset};
-//_functionList getLEDBrightnessFunction =          {"LB", "0", "",  &getLEDBrightness};
-//_functionList setLEDBrightnessFunction =          {"LB", "1", "",  &setLEDBrightness};
+
 
 // Declare array of API functions
-_functionList apiFunction[12] = {
+_functionList apiFunction[23] = {
   getDeviceNumberFunction,
   getModelNumberFunction,
   getVersionNumberFunction,
   getOperatingModeFunction,
   setOperatingModeFunction,
+  getSlotNumberFunction,
+  setSlotNumberFunction,
+  getJoystickInitializationFunction,
+  setJoystickInitializationFunction,
+  getJoystickCalibrationFunction,
+  setJoystickCalibrationFunction,
   getJoystickDeadZoneFunction,
   setJoystickDeadZoneFunction,
   getMouseCursorSpeedFunction,
   setMouseCursorSpeedFunction,
-  getSlotNumberFunction,
-  setSlotNumberFunction,
+  getJoystickValueFunction,
+  getLedBrightnessFunction,
+  setLedBrightnessFunction,
+  getLedColorFunction,
+  setLedColorFunction,
   softResetFunction
 };
 
-//Switch properties
-const switchStruct switchProperty[] {
-  {1, "S1", 1},
+// Switch properties
+const switchStruct joystickMapping[] {
+  {1, "S1", 1}, // Switch Number, Switch Button Name, Switch Button Number
   {2, "S2", 2},
   {3, "S3", 3},
   {4, "S4", 4}
-
 };
 
-//Slot properties                   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPEDNING IF INIT OR NO
+// Slot properties   **CHANGE THESE WITH VARIABLES AND HAVE THEM BE LOADED IN SETUP DEPENDING IF INIT OR NO
 slotStruct mouseSlots[] {
   {0, LED_SLOT0, "Default", 5}, // slot number, Slot LED Number, Slot name, cursor speed
   {1, LED_SLOT1, "Slow",    1},
@@ -276,7 +336,7 @@ slotStruct mouseSlots[] {
 };
 
 Adafruit_NeoPixel led_microcontroller(1, PIN_NEOPIXEL);  // Create a pixel strand with 1 pixel on QtPy
-Adafruit_NeoPixel leds(5, PIN_LEDS);  // Create a pixel strand with 5 NeoPixels
+Adafruit_NeoPixel leds(5, PIN_LEDS, NEO_RGB + NEO_KHZ800);  // Create a pixel strand with 5 NeoPixels
 
 //***MICROCONTROLLER AND PERIPHERAL CONFIGURATION***//
 // Function   : setup
@@ -295,22 +355,13 @@ void setup() {
     // Initialize Memory
   initMemory();
   delay(FLASH_DELAY_TIME);
-  if (USB_DEBUG) { Serial.println("DEBUG: Memory initialized.");}
-  
-  led_microcontroller.begin(); // Initiate pixel on microcontroller
-  led_microcontroller.clear();
-  led_microcontroller.setBrightness(ledBrightness);
-  // led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 0, 0)); // Turn LED red to start
-  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 255)); // Turn LED white to start
-  led_microcontroller.show();
-  if (USB_DEBUG) { Serial.println("DEBUG: Microcontroller LED on.");}
-
-  leds.begin();
-  leds.clear();
-  leds.setBrightness(ledBrightness);
-  leds.show();
- if (USB_DEBUG) { Serial.println("DEBUG: Neopixel started.");}
-  
+ 
+  initLeds();  // Initialize Neopixel and microcontroller LEDs
+  waitLeds();  // Turn all Neopixels red and microcontroller white
+  initPins();  // Initialize input and output pins
+  //tone(PIN_BUZZER, MODE_START_TONE, MODE_START_TONE_LENGTH); 
+  //delay(2000);
+ 
     // Begin HID gamepad or mouse, depending on mode selection
   switch (operatingMode) {
     case MODE_MOUSE:
@@ -325,36 +376,25 @@ void setup() {
 
   // Initialize Joystick
   initJoystick();
-  if (USB_DEBUG) { Serial.println("DEBUG: Joystick initialized.");}
-
-  //Initialize the switch pins as inputs
-  pinMode(PIN_SW_S1, INPUT_PULLUP);
-  pinMode(PIN_SW_S2, INPUT_PULLUP);
-  pinMode(PIN_SW_S3, INPUT_PULLUP);
-  pinMode(PIN_SW_S4, INPUT_PULLUP);
-  pinMode(PIN_BUTTON, INPUT);
-
+  
 
   checkSetupMode(); // Check to see if operating mode change
   delay(STARTUP_DELAY_TIME);
 
- 
-  // Turn on indicator light, depending on mode selection
+   // Turn on indicator light, depending on mode selection
+  showModeLED();
+  updateSlot(slotNumber);
+
+
+  
   switch (operatingMode) {
     case MODE_MOUSE:
-      led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
-      led_microcontroller.show();
-      leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
-      leds.show();
+        tone(PIN_BUZZER, MODE_MOUSE_TONE, MODE_MOUSE_TONE_LENGTH); 
       break;
     case MODE_GAMEPAD:
-      led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
-      led_microcontroller.show();
-      leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
-      leds.show();
+        tone(PIN_BUZZER, MODE_GAMEPAD_TONE, MODE_GAMEPAD_TONE); 
       break;
   }
-  updateSlot(slotNumber);
  
   lastInteractionUpdate = millis();  // get first timestamp
 
@@ -362,7 +402,7 @@ void setup() {
 
 void loop() {
 
-  settingsEnabled = serialSettings(settingsEnabled); //Check to see if setting option is enabled
+  settingsEnabled = serialSettings(settingsEnabled); // Check to see if setting option is enabled
 
 
   if (millis() >= lastInteractionUpdate + UPDATE_INTERVAL) {
@@ -374,9 +414,9 @@ void loop() {
 
     switchesActions();
 
-    // mode change function
+    // TODO mode change function
 
-    // calibration function
+    // TODO calibration function
     
   }
 }
@@ -395,34 +435,73 @@ void loop() {
 // Return     : void
 //****************************************//
 void initMemory() {
-  //Check if it's first time running the code
+  if (USB_DEBUG) { Serial.println("DEBUG: initMemory");}
+
+  // Check if it's first time running the code
   isConfigured = isConfiguredFlash.read();
   delay(FLASH_DELAY_TIME);
 
-  if (isConfigured == 0) {
-    //Define default settings if it's first time running the code
+  if (isConfigured == false) {
+    // Define default settings if it's first time running the code and write default settings to flash storage
     modelNumber = JOYSTICK_MODEL;
-    deviceNumber = JOYSTICK_DEVICE;
-    versionNumber = JOYSTICK_VERSION;
-    deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
-    operatingMode = DEFAULT_MODE;
-    slotNumber = DEFAULT_SLOT;
-    ledBrightness = LED_DEFAULT_BRIGHTNESS;
-    isConfigured = 1;
-
-    //cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    //Load each slot cursor speed level here
-    cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
-
-    //Write default settings to flash storage
     modelNumberFlash.write(modelNumber);
+
+    deviceNumber = JOYSTICK_DEVICE;
+    
+    versionNumber = JOYSTICK_VERSION;
     versionNumberFlash.write(versionNumber);
+
+    deadzoneLevel = JOYSTICK_DEFAULT_DEADZONE_LEVEL;
     deadzoneLevelFlash.write(deadzoneLevel);
-    cursorSpeedLevelFlash.write(cursorSpeedLevel);          //Save each slot cursor speed level here
+
+    operatingMode = DEFAULT_MODE;
     operatingModeFlash.write(operatingMode);
+
+    slotNumber = SLOT_DEFAULT_NUMBER;
     slotNumberFlash.write(slotNumber);
+
+    // cursorSpeedLevel = MOUSE_DEFAULT_CURSOR_SPEED_LEVEL;    // Load each slot cursor speed level here
+    cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
+    cursorSpeedLevelFlash.write(cursorSpeedLevel);          // Save each slot cursor speed level here
+
+    
+    
+    xOutputMinimum = -JOYSTICK_MAX_VALUE;
+    xOutputMinimumFlash.write(xOutputMinimum);
+
+    xNeutral = JOYSTICK_NEUTRAL_DEFAULT;
+    xNeutralFlash.write(xNeutral);
+
+    xOutputMaximum = JOYSTICK_MAX_VALUE;
+    xOutputMaximumFlash.write(xOutputMaximum);
+
+    yOutputMinimum = -JOYSTICK_MAX_VALUE;
+    yOutputMinimumFlash.write(yOutputMinimum);
+
+    yNeutral = JOYSTICK_NEUTRAL_DEFAULT;
+    yNeutralFlash.write(yNeutral);
+
+    yOutputMaximum = JOYSTICK_MAX_VALUE;
+    yOutputMaximumFlash.write(yOutputMaximum);
+
+    ledBrightness = LED_DEFAULT_BRIGHTNESS;
     ledBrightnessFlash.write(ledBrightness);
 
+
+    ledColorR = CONF_LED_COLOR_R_DEFAULT;
+    ledColorRFlash.write(ledColorR);
+
+    ledColorG = CONF_LED_COLOR_G_DEFAULT;
+    ledColorGFlash.write(ledColorG);
+    
+    ledColorB = CONF_LED_COLOR_B_DEFAULT;
+    ledColorBFlash.write(ledColorB);
+
+
+    isConfigured = true;
     isConfiguredFlash.write(isConfigured);
+
+    
     delay(FLASH_DELAY_TIME);
 
   } else {
@@ -433,16 +512,20 @@ void initMemory() {
     operatingMode = operatingModeFlash.read();
     slotNumber = slotNumberFlash.read();
     //cursorSpeedLevel = cursorSpeedLevelFlash.read();
-    cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  
+    cursorSpeedLevel = mouseSlots[slotNumber].slotCursorSpeedLevel;  // TODO integrate this better
+    
+    xOutputMinimum = xOutputMinimumFlash.read();
+    xOutputMaximum = xOutputMaximumFlash.read();
+    yOutputMinimum = yOutputMinimumFlash.read();
+    yOutputMaximum = yOutputMaximumFlash.read();
+
+    xNeutral = xNeutralFlash.read();
+    yNeutral = yNeutralFlash.read();
+
     ledBrightness = ledBrightnessFlash.read();
-
-    xMinimum = xMinimumFlash.read();
-    xMaximum = xMaximumFlash.read();
-    yMinimum = yMinimumFlash.read();
-    yMaximum = yMaximumFlash.read();
-
-    //xNeutralFlash.read();
-    //yNeutralFlash.read();
+    ledColorR = ledColorRFlash.read();
+    ledColorG = ledColorGFlash.read();
+    ledColorB = ledColorBFlash.read();
 
     delay(FLASH_DELAY_TIME);
   }
@@ -467,6 +550,37 @@ void initMemory() {
   Serial.print("Cursor Speed Level: ");
   Serial.println(cursorSpeedLevel);
 
+  Serial.print("Calibration-xOutputMinimum:");
+  Serial.println(xOutputMinimum);
+
+  Serial.print("Calibration-xOutputMaximum:");
+  Serial.println(xOutputMaximum);
+
+  Serial.print("Calibration-yOutputMinimum:");
+  Serial.println(yOutputMinimum);
+
+  Serial.print("Calibration-yOutputMaximum:");
+  Serial.println(yOutputMaximum);
+
+  Serial.print("Calibration-xNeutral:");
+  Serial.println(xNeutral);
+
+  Serial.print("Calibration-yNeutral:");
+  Serial.println(yNeutral);
+
+  Serial.print("Calibration-ledColorR:");
+  Serial.println(ledColorR);
+
+  Serial.print("Calibration-ledColorG:");
+  Serial.println(ledColorG);
+
+  Serial.print("Calibration-ledColorB:");
+  Serial.println(ledColorB);
+
+  Serial.print("Calibration-ledBrightness:");
+  Serial.println(ledBrightness);
+
+
 }
 
 //***INITIALIZE JOYSTICK FUNCTION***//
@@ -480,8 +594,69 @@ void initMemory() {
 //****************************************//
 void initJoystick()
 {
-  getJoystickDeadZone(true, false);                                         //Get joystick deadzone stored in memory                                      //Get joystick calibration points stored in flash memory
+  if (USB_DEBUG) { Serial.println("DEBUG: initJoystick");}
+
+  joystickNeutralCalibration();  // Triger Joystick neutral calibration
+  getJoystickDeadZone(true, false);  // Get joystick deadzone stored in memory                                      //Get joystick calibration points stored in flash memory
 }
+
+
+void joystickNeutralCalibration() {
+
+  leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));  // Turn LED white
+  leds.setPixelColor(LED_GAMEPAD, leds.Color(255,255,255));  // Turn LED white
+  leds.show();
+
+
+  const int JOYSTICK_NEUTRAL_READINGS = 10;  // Number of measurements to read
+
+  // Create variable to capture neutral position measurements
+  int tempXNeutral = 0;
+  int tempYNeutral = 0;
+
+  // Make multiple readings of neutral position
+  for (int i = 0; i < JOYSTICK_NEUTRAL_READINGS ; i++){
+     // Read analog raw value using ADC
+    tempXNeutral += analogRead(PIN_JOYSTICK_X);  // Expected to be in center of voltage range (i.e., 511)
+    tempYNeutral += analogRead(PIN_JOYSTICK_Y);
+    delay(50);
+  }
+
+  // Calculate average of neutral position readings
+  int xNeutralRaw = tempXNeutral / JOYSTICK_NEUTRAL_READINGS;
+  int yNeutralRaw = tempYNeutral / JOYSTICK_NEUTRAL_READINGS;
+
+  // Map neutral calibration 
+  xNeutral = map(xNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
+  yNeutral = map(yNeutralRaw, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
+
+  // Calculate radius values from diagonals
+  //int rad1 = calcMag((xOutputMaximum - xNeutral), (yOutputMaximum - yNeutral))/sqrt(2.0);
+  //int rad2 = calcMag((xOutputMaximum - xNeutral), (yOutputMinimum - yNeutral))/sqrt(2.0);
+  //int rad3 = calcMag((xOutputMinimum - xNeutral), (yOutputMaximum - yNeutral))/sqrt(2.0);
+  //int rad4 = calcMag((xOutputMinimum - xNeutral), (yOutputMinimum - yNeutral))/sqrt(2.0);
+
+  // Calculate radius values from cardinal directions
+  int rad1 = abs(xOutputMaximum - xNeutral);
+  int rad2 = abs(xOutputMinimum - xNeutral);
+  int rad3 = abs(yOutputMaximum - yNeutral);
+  int rad4 = abs(yOutputMinimum - yNeutral);
+  
+  minRange = min(min(rad1, rad2), min(rad3, rad4)) * 0.95;
+  
+  /*
+  Serial.println(rad1);
+  Serial.println(rad2);
+  Serial.println(rad3);
+  Serial.println(rad4);
+  Serial.println(minRange);
+  */
+  
+  // Calibration Complete, show mode LED
+  showModeLED();
+
+}
+
 
 //***READ JOYSTICK FUNCTION**//
 // Function   : readJoystick
@@ -496,28 +671,90 @@ void initJoystick()
 
 void readJoystick() {
 
-  //Read analog raw value using ADC
-  inputX = analogRead(PIN_JOYSTICK_X);
-  inputY = analogRead(PIN_JOYSTICK_Y);
+  // Read analog raw value using ADC
+  rawX = analogRead(PIN_JOYSTICK_X); // Digitized analog voltage. Expected value (0 - 1023)
+  rawY = analogRead(PIN_JOYSTICK_Y);
 
-  //Map joystick x and y move values
-  outputX = map(inputX, 0, 1023, -127, 127);   //TODO - MODIFY TO IMPLEMENT CALIBRATION
-  outputY = map(inputY, 0, 1023, -127, 127);
+  // Remap raw joystick values from (0-1023) to joystick output scale (-127 - 127)
+  inputX = map(rawX, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);   
+  inputY = map(rawY, 0, JOYSTICK_INPUT_XY_MAX, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
 
+  // Center point and implement neutral calibration
+  centeredX = inputX - xNeutral;
+  centeredY = inputY - yNeutral;
 
+  float outputMag = calcMag(centeredX, centeredY);
 
-  //outputY = -outputY;     // To account for backwards Y directions 
-
-  double outputMag = calcMag(outputX, outputY);
-
-  //Apply radial deadzone *********************************************************************
+  // Apply radial deadzone ************************
   if (outputMag <= currentDeadzoneValue)
   {
-    outputX = 0;
-    outputY = 0;
+    centeredX = 0;
+    centeredY = 0;
+  } else if (outputMag >= minRange)
+  {
+    float thetaVal = atan2(centeredY, centeredX);
+    centeredX = sgn(centeredX) * abs(cos(thetaVal)*minRange);
+    centeredY = sgn(centeredY) * abs(sin(thetaVal)*minRange);
   }
 
+  outputX = map(centeredX, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE);
+  outputY = map(centeredY, -minRange, minRange, -JOYSTICK_MAX_VALUE, JOYSTICK_MAX_VALUE); //TODO: Clean this up with more clear variable names
+
+  //Serial.print(outputX); Serial.print("\t"); Serial.println(outputY);
 }
+
+//*********************************//
+// Function   : sgn 
+// 
+// Description: The sign of float value ( -1 or +1 )
+// 
+// Arguments :  val : float : float input value
+// 
+// Return     : sign : int : sign of float value ( -1 or +1 )
+//*********************************//
+int sgn(float val) {
+  return (0.0 < val) - (val < 0.0);
+}
+
+//*********************************//
+// Function   : getMean 
+// 
+// Description: Returns the mean of an array of integers.
+// 
+// Arguments :  val : int* : pointer to array of integers
+//              arrayCount : int : Size of array
+// 
+// Return     : avg : int : mean of input array values
+float getMean(int* val, int arrayCount) {
+  long total = 0;
+  for (int i = 0; i < arrayCount; i++) {
+    total = total + val[i];
+  }
+  float avg = total / (float)arrayCount;
+  return avg;
+}
+
+//*********************************//
+// Function   : getStdDev 
+// 
+// Description: Calculates the standard deviation of an array of numbers.
+// 
+// Arguments :  val : int* : array of float input value
+//              arrayCount : int  : size of array 
+// 
+// Return     : sign : int : sign of float value ( -1 or +1 )
+float getStdDev(int* val, int arrayCount) {
+  float avg = getMean(val, arrayCount);
+  long total = 0;
+  for (int i = 0; i < arrayCount; i++) {
+    total = total + (val[i] - avg) * (val[i] - avg);
+  }
+
+  float variance = total / (float)arrayCount;
+  float stdDev = sqrt(variance);
+  return stdDev;
+}
+
 
 //***JOYSTICK ACTIONS FUNCTION**//
 // Function   : joystickActions
@@ -644,8 +881,8 @@ void switchesActions(){
         break;
     }
 
-    
-    slotModeChange();
+    calibrationActions();
+    slotModeChangeActions();
     
 }
 
@@ -663,28 +900,28 @@ void switchesJoystickActions() {
 
   //Perform button actions
   if (switchS1Pressed) {
-    gamepadButtonPress(switchProperty[0].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[0].switchButtonNumber);
   }
   else if (!switchS1Pressed && switchS1PrevPressed) {
-    gamepadButtonRelease(switchProperty[0].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[0].switchButtonNumber);
   }
 
   if (switchS2Pressed) {
-    gamepadButtonPress(switchProperty[1].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[1].switchButtonNumber);
   } else if (!switchS2Pressed && switchS2PrevPressed) {
-    gamepadButtonRelease(switchProperty[1].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[1].switchButtonNumber);
   }
 
   if (switchS3Pressed) {
-    gamepadButtonPress(switchProperty[2].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[2].switchButtonNumber);
   } else if (!switchS3Pressed && switchS3PrevPressed) {
-    gamepadButtonRelease(switchProperty[2].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[2].switchButtonNumber);
   }
 
   if (switchS4Pressed) {
-    gamepadButtonPress(switchProperty[3].switchButtonNumber);
+    gamepadButtonPress(joystickMapping[3].switchButtonNumber);
   } else if (!switchS4Pressed && switchS4PrevPressed) {
-    gamepadButtonRelease(switchProperty[3].switchButtonNumber);
+    gamepadButtonRelease(joystickMapping[3].switchButtonNumber);
   }
 
 }
@@ -738,44 +975,86 @@ void switchesMouseActions() {
     Mouse.release(MOUSE_RIGHT);
   }
 
-  if (switchS4Pressed) {
-    int counter = 0;
-    //change colour of neopixel to indicate entering scroll mode?
-    while (switchS4Pressed) {
+  if (switchS4Pressed && !switchS4PrevPressed) {
+    int scrollCounter = 0;
+    scrollModeOn = true;
 
+    // Turn mouse mode Neopixel white to indicate scroll mode
+    leds.setPixelColor(LED_MOUSE, leds.Color(255,255,255));  // Turn LED white
+    leds.show();
+
+    tone(PIN_BUZZER, SCROLL_START_TONE, SCROLL_TONE_LENGTH); 
+ 
+    while (scrollModeOn) {
+      
       readJoystick();
       readSwitches();
 
       if (outputY > 0) {
         Mouse.move(0, 0, 1);                  // Scroll up
-        counter++;
+        scrollCounter++;
       }
       else if (outputY < 0) {
         Mouse.move(0, 0, -1);                 //Scroll down
-        counter++;
+        scrollCounter++;
       } else if (outputY == 0) {
-        counter = 0;
+        scrollCounter = 0;
       }
 
-      if (counter == 0) {
+      if (scrollCounter == 0) {
         delay(2);                             // low delay before any scroll actions have been completed, continue to read switches and joystick
-      } else if (counter == 1) {
+      } else if (scrollCounter == 1) {
         delay(500);                           // long delay after first scroll action, to allow user to do single scroll
-      } else if (counter < SLOW_SCROLL_NUM) {
+      } else if (scrollCounter < SLOW_SCROLL_NUM) {
         delay(SLOW_SCROLL_DELAY);             // first 10 scroll actions are slower (have longer delay) to allow precise scrolling
       } else {
         delay(FAST_SCROLL_DELAY);             // scroll actions after first 10 are faster (have less delay) to allow fast scrolling
+      }
+
+      if (switchS4Pressed && !switchS4PrevPressed){
+        scrollModeOn = false;
+        //change colour of neopixel to indicate exiting scroll mode?
       }
 
     }
   } else if (!switchS4Pressed && switchS4PrevPressed) {
     //action on release
     //change colour of neopixel to indicate exiting scroll mode?
+    leds.setPixelColor(LED_MOUSE, leds.Color(ledColorR, ledColorG, ledColorB));  // Turn LED to user color
+    leds.show();
+    tone(PIN_BUZZER, SCROLL_END_TONE, SCROLL_TONE_LENGTH); 
+  }
+}
+
+//***CALIBRATION ACTIONS FUNCTION**//
+// Function   : calibrationActions
+//
+// Description: This function checks the calibration button to determine if a neutral calibration or extents calibration should take place. 
+//
+// Parameters :  Void
+//
+// Return     : Void
+//*********************************//
+
+void calibrationActions(){
+  if (buttonCPressed){
+   
+    if (!buttonCPrevPressed){ 
+      // button pressed for the first time
+      cPressStartMillis = millis();
+    }
+
+  } else if (buttonCPrevPressed){
+    if ((millis()-cPressStartMillis)>= LONG_PRESS_MILLIS){
+      //TODO: Add full calibration here
+    } else{
+      joystickNeutralCalibration();
+    }
   }
 }
 
 //***SLOT AND MODE CHANGE FUNCTION**//
-// Function   : slotModeChange
+// Function   : slotModeChangeActions
 //
 // Description: This function checks the mode button and switch to determine if a slot change or mode change should take place. 
 //
@@ -784,7 +1063,7 @@ void switchesMouseActions() {
 // Return     : Void
 //*********************************//
 
-void slotModeChange() {
+void slotModeChangeActions() {
   
   
   if (switchSMPressed || buttonMPressed){
@@ -832,17 +1111,17 @@ void modeChange(){
   // Display corresponding mode LED
   switch (operatingMode) {
     case MODE_MOUSE:
-      led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); // Turn Mouse mode indicator on
       led_microcontroller.show();
       leds.setPixelColor(LED_GAMEPAD, leds.Color(0,0,0)); // Turn off Gamepad LED
-      leds.setPixelColor(LED_MOUSE, leds.Color(255,255,0));// Turn LED yellow
+      leds.setPixelColor(LED_MOUSE, leds.Color(ledColorR, ledColorG, ledColorB));// Turn LED yellow
       leds.show();
       break;
     case MODE_GAMEPAD:
-      led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
+      led_microcontroller.setPixelColor(0, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); // Turn Gamepad mode indicator ON
       led_microcontroller.show();
       leds.setPixelColor(LED_MOUSE, leds.Color(0,0,0)); // Turn off Mouse LED
-      leds.setPixelColor(LED_GAMEPAD, leds.Color(0, 0, 255)); // Turn LED blue
+      leds.setPixelColor(LED_GAMEPAD, leds.Color(ledColorR, ledColorG, ledColorB)); // Turn LED blue
       leds.show();
       break;
   }
@@ -876,7 +1155,7 @@ void incrementSlot(){
     newSlotNumber = SLOT_MIN_NUMBER;
   }
 
-  setSlotNumber(false,false,newSlotNumber);
+  setSlotNumber(false, false, newSlotNumber);
 }
 
 //***UPDATE SLOT NUMBER FUNCTION**//
@@ -900,8 +1179,15 @@ void updateSlot(int newSlotNumber){
       // Turn off previous slot LED
   leds.setPixelColor(mouseSlots[slotNumber].slotLEDNumber, leds.Color(0, 0, 0));
     // Turn on indicator light for current slot
-  leds.setPixelColor(mouseSlots[newSlotNumber].slotLEDNumber, leds.Color(0, 255, 0)); // Turn Slot LED red
+  leds.setPixelColor(mouseSlots[newSlotNumber].slotLEDNumber, leds.Color(ledColorR, ledColorG, ledColorB)); // Turn Slot to LED color
   leds.show();
+
+  // Play sound
+  for (int i = 0; i < newSlotNumber; i++){
+    tone(PIN_BUZZER, SLOT_TONE, SLOT_TONE_LENGTH);
+    delay(SLOT_TONE_DELAY);
+  }
+
 
   //Update global variable.
   slotNumber = newSlotNumber;
@@ -911,7 +1197,7 @@ void updateSlot(int newSlotNumber){
 //***CHECK SETUP MODE FUNCTION**//
 // Function   : checkSetupMode
 //
-// Description: This function sets the operating mode
+// Description: This function checks whether SW1 and SW2 are pressed on startup to change the operating mode.
 //
 // Parameters :  Void
 //
@@ -920,7 +1206,7 @@ void updateSlot(int newSlotNumber){
 
 void checkSetupMode() {
 
-  //Update status of switch inputs
+  // Update status of switch inputs
   switchS1Pressed = !digitalRead(PIN_SW_S1);
   switchS2Pressed = !digitalRead(PIN_SW_S2);
   switchS3Pressed = !digitalRead(PIN_SW_S3);
@@ -969,15 +1255,15 @@ void checkSetupMode() {
         if (mode > 1) {
           mode = 0;
         }
-        switch (mode) { //Update color
+        switch (mode) { // Update color
           case MODE_MOUSE:
             Serial.println("Mouse mode selected.");
-            led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); //yellow
+            led_microcontroller.setPixelColor(0, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); //yellow
             led_microcontroller.show();
             break;
           case MODE_GAMEPAD:
             Serial.println("Gamepad mode selected.");
-            led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); //blue
+            led_microcontroller.setPixelColor(0, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); //blue
             led_microcontroller.show();
             break;
           default:
@@ -995,7 +1281,7 @@ void checkSetupMode() {
     //
     if (mode != operatingMode) { // If operating mode has changed
       operatingMode = mode;
-      operatingModeFlash.write(operatingMode); //write update mode to memory
+      operatingModeFlash.write(operatingMode); // Write updated operating mode to memory
       delay(5);
     }
 
@@ -1003,14 +1289,14 @@ void checkSetupMode() {
       Serial.println("Release all buttons and reset joystick...");
     }
 
-    while (1) { //Blink operating mode color until reset
+    while (1) { // Blink operating mode color until reset
       switch (mode) {
         case MODE_MOUSE:
-          led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 0)); // Turn LED yellow
+          led_microcontroller.setPixelColor(0, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); // Turn LED user color
           led_microcontroller.show();
           break;
         case MODE_GAMEPAD:
-          led_microcontroller.setPixelColor(0, led_microcontroller.Color(0, 0, 255)); // Turn LED blue
+          led_microcontroller.setPixelColor(0, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); // Turn LED user color
           led_microcontroller.show();
           break;
       }
@@ -1163,8 +1449,138 @@ void gamepadJoystickMove(int x, int y)
 void mouseJoystickMove(int x, int y)
 {
   // Move the mouse based on current cursor speed
-  Mouse.move(currentMouseCursorSpeedValue * outputX / 127, -currentMouseCursorSpeedValue * outputY / 127, 0); 
+  Mouse.move(currentMouseCursorSpeedValue * outputX / JOYSTICK_MAX_VALUE, -currentMouseCursorSpeedValue * outputY / JOYSTICK_MAX_VALUE, 0); 
+  //Serial.println(currentMouseCursorSpeedValue * outputX / JOYSTICK_MAX_VALUE);
+}
+
+
+//***INITIALIZE PINS FUNCTION***//
+// Function   : initPins
+//
+// Description: Initializes input and output pins
+//
+// Parameters : void
+//
+// Return     : void
+//****************************************//
+void initPins(void)
+{
+  if (USB_DEBUG) { Serial.println("DEBUG: initPins");}
   
+  // Initialize the switch pins as inputs
+  pinMode(PIN_SW_S1, INPUT_PULLUP);
+  pinMode(PIN_SW_S2, INPUT_PULLUP);
+  pinMode(PIN_SW_S3, INPUT_PULLUP);
+  pinMode(PIN_SW_S4, INPUT_PULLUP);
+  
+  // Initialize the resistor network for Mode button, Calibration button
+  pinMode(PIN_BUTTON, INPUT);
+
+  // Initialize the speaker
+
+
+}
+
+
+
+//***INITIALIZE LEDS FUNCTION***//
+// Function   : initLeds
+//
+// Description: Initializes both the Neopixel LEDS and the LED on the microcontroller and sets them off.
+//
+// Parameters : void
+//
+// Return     : void
+//****************************************//
+void initLeds(void)
+{
+  if (USB_DEBUG) { Serial.println("DEBUG: initLeds.");}
+  
+  led_microcontroller.begin(); // Initiate pixel on microcontroller
+  led_microcontroller.clear();
+  led_microcontroller.setBrightness(ledBrightness);
+  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 255)); // Turn LED white to start
+  led_microcontroller.show();
+  if (USB_DEBUG) { Serial.println("DEBUG: Microcontroller LED on.");}
+
+
+
+  leds.begin();  // Initiate pixels on board
+  leds.clear();
+  leds.setBrightness(ledBrightness);
+  leds.show();
+  if (USB_DEBUG) { Serial.println("DEBUG: Neopixel started.");}
+
+}
+
+//***WAIT LEDS FUNCTION***//
+// Function   : waitLeds
+//
+// Description: Turns all Neopixels red and microcontroller led white on startup
+//
+// Parameters : void
+//
+// Return     : void
+//****************************************//
+void waitLeds(void)
+{
+  if (USB_DEBUG) { Serial.println("DEBUG: waitLeds.");}
+  
+  // Turn all Neopixels red
+  for (int led_index = 0; led_index < LED_NUM_PIXELS; led_index++)
+  {
+    leds.setPixelColor(led_index, leds.Color(255,0,0));
+  }
+  leds.show();
+
+  led_microcontroller.setPixelColor(0, led_microcontroller.Color(255, 255, 255)); // Turn LED white to start
+  led_microcontroller.show();
+}
+
+
+
+
+//***UPDATE LED BRIGHTNESS FUNCTION***//
+// Function   : updateLedBrightness
+//
+// Description: This function updates the LED brightness of the Neopixel strips based on the global variable.
+//
+// Parameters : void
+//
+// Return     : void
+//****************************************//
+void updateLedBrightness(void)
+{
+  led_microcontroller.setBrightness(ledBrightness);
+  leds.setBrightness(ledBrightness);
+}
+
+//***UPDATE LED BRIGHTNESS FUNCTION***//
+// Function   : showModeLED
+//
+// Description: This function updates the LED brightness of the Neopixel strips based on the global variable.
+//
+// Parameters : void
+//
+// Return     : void
+//****************************************//
+void showModeLED(){
+
+  leds.clear();
+  led_microcontroller.clear();
+
+  switch (operatingMode) {
+    case MODE_MOUSE:
+      led_microcontroller.setPixelColor(LED_MICRO, led_microcontroller.Color(ledColorR, ledColorG, ledColorB)); // Turn LED to user color
+      leds.setPixelColor(LED_MOUSE, leds.Color(ledColorR, ledColorG, ledColorB));  // Turn LED to user color
+      break;
+    case MODE_GAMEPAD:
+      led_microcontroller.setPixelColor(LED_MICRO, led_microcontroller.Color(ledColorR, ledColorG, ledColorB));  // Turn LED to user color
+      leds.setPixelColor(LED_GAMEPAD, leds.Color(ledColorR, ledColorG, ledColorB));  // Turn LED to user color
+      break;
+  }
+  led_microcontroller.show();
+  leds.show();
 }
 
 
@@ -1712,6 +2128,22 @@ void setJoystickInitialization(bool responseEnabled, bool apiEnabled) {
  // int stepNumber = 0;
  // canOutputAction = false;
  // calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_INIT_START_DELAY, performJoystickCenter, (int *)stepNumber);  
+  joystickNeutralCalibration();
+  int tempCenterPoint[2];
+  tempCenterPoint[0]=xNeutral;
+  tempCenterPoint[1]=yNeutral;
+
+
+  printResponseIntArray(responseEnabled,        // pass through responseEnabled
+                        apiEnabled,             // pass through apiEnabled
+                        true,                   // responseStatus, 
+                        0,                      // responseNumber
+                        "IN,1",                 // responseCommand
+                        true,                   // responseParameterEnabled,
+                        "",                     // responsePrefix
+                        2,                      // responseParameterSize
+                        ',',                    // responseParameterDelimiter
+                        tempCenterPoint);       // responseParameter[]
 }
 
 //***SET JOYSTICK INITIALIZATION API FUNCTION***//
@@ -1758,24 +2190,25 @@ void getJoystickCalibration(bool responseEnabled, bool apiEnabled) {
   
   int calibrationPointArray[6];
 
-  calibrationPointArray[0]=xMinimum;
+  calibrationPointArray[0]=xOutputMinimum;
   calibrationPointArray[1]=xNeutral;
-  calibrationPointArray[2]=xMaximum;
-  calibrationPointArray[3]=yMinimum;
+  calibrationPointArray[2]=xOutputMaximum;
+  calibrationPointArray[3]=yOutputMinimum;
   calibrationPointArray[4]=yNeutral;
-  calibrationPointArray[5]=yMaximum;
+  calibrationPointArray[5]=yOutputMaximum;
 
   
   printResponseIntArray(responseEnabled,        // pass through responseEnabled
                         apiEnabled,             // pass through apiEnabled
                         true,                   // responseStatus, 
                         0,                      // responseNumber
-                        "CA,0",                 // responseCommand
+                        "CA,1",                 // responseCommand
                         true,                   // responseParameterEnabled,
                         "",                     // responsePrefix
                         6,                      // responseParameterSize
                         ',',                    // responseParameterDelimiter
                         calibrationPointArray);       // responseParameter[]
+
 }
 //***GET JOYSTICK CALIBRATION API FUNCTION***//
 // Function   : getJoystickCalibration
@@ -1808,12 +2241,17 @@ void getJoystickCalibration(bool responseEnabled, bool apiEnabled, String option
 // Return     : void
 //*********************************//
 void setJoystickCalibration(bool responseEnabled, bool apiEnabled) {
-  //todo
+  if (USB_DEBUG) { Serial.println("DEBUG: setJoystickCalibration");}
+
+  // TODO Implement full joystick calibration routine
+
   //js.clear();                                                                                           //Clear previous calibration values
   //int stepNumber = 0;
   //canOutputAction = false;
   //calibTimerId[0] = calibTimer.setTimeout(CONF_JOY_CALIB_START_DELAY, performJoystickCalibration, (int *)stepNumber);  //Start the process
+
 }
+
 //***SET JOYSTICK CALIBRATION API FUNCTION***//
 // Function   : setJoystickCalibration
 //
@@ -2119,6 +2557,251 @@ void setOperatingMode(bool responseEnabled, bool apiEnabled, String optionalPara
   setOperatingMode(responseEnabled, apiEnabled, optionalParameter.toInt());
 }
 
+//***GET JOYSTICK VALUE FUNCTION***//
+// Function   : getJoystickValue
+//
+// Description: This function returns raw joystick value.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : void
+//*********************************//
+void getJoystickValue(bool responseEnabled, bool apiEnabled) {
+  readJoystick(); // Measure and calculate new joystick reading
+
+  const int outputArraySize = 8;
+  int tempJoystickArray[outputArraySize];
+  tempJoystickArray[0] = rawX;
+  tempJoystickArray[1] = rawY;
+
+  tempJoystickArray[2] = inputX;
+  tempJoystickArray[3] = inputY;
+
+  tempJoystickArray[4] = centeredX;
+  tempJoystickArray[5] = centeredY;
+
+  tempJoystickArray[6] = outputX;
+  tempJoystickArray[7] = outputY;
+
+  printResponseIntArray(responseEnabled, apiEnabled, true, 0, "JV,0", true, "", outputArraySize, ',', tempJoystickArray);
+  
+}
+//***GET JOYSTICK VALUE API FUNCTION***//
+// Function   : getJoystickValue
+//
+// Description: This function is redefinition of main getJoystickValue function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getJoystickValue(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getJoystickValue(responseEnabled, apiEnabled);
+  }
+}
+
+//***GET LED BRIGHTNESS FUNCTION***//
+// Function   : getLedBrightness
+//
+// Description: This function retrieves LED brightness.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : ledBrightness : int : The current LED brightness.
+//*********************************//
+int getLedBrightness(bool responseEnabled, bool apiEnabled) {
+  String commandKey = "LB";
+
+    int tempLedBrightness;
+    tempLedBrightness = ledBrightnessFlash.read();
+
+  if ((tempLedBrightness < CONF_LED_BRIGHTNESS_MIN) || (tempLedBrightness > CONF_LED_BRIGHTNESS_MAX)) {  // 
+    tempLedBrightness = CONF_LED_BRIGHTNESS_DEFAULT;
+    ledBrightnessFlash.write(tempLedBrightness); // if out of bounds, set to default 
+  }
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "LB,0", true, tempLedBrightness);
+
+  return tempLedBrightness;
+}
+
+//***GET LED BRIGHTNESS API FUNCTION***//
+// Function   : getLedBrightness
+//
+// Description: This function is redefinition of main getLedBrightness function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getLedBrightness(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getLedBrightness(responseEnabled, apiEnabled);
+  }
+}
+
+//***SET LED BRIGHTNESS FUNCTION***//
+// Function   : setLedBrightness
+//
+// Description: This function sets the LED Brightness.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               inputLedBrightness : int : The new LED Brightness
+//
+// Return     : void
+//*********************************//
+void setLedBrightness(bool responseEnabled, bool apiEnabled, int inputLedBrightness) {
+  String commandKey = "LB";
+  
+  if (USB_DEBUG) { Serial.println("DEBUG: setLedBrightness");}
+   
+  if ((inputLedBrightness >= CONF_LED_BRIGHTNESS_MIN) && (inputLedBrightness <= CONF_LED_BRIGHTNESS_MAX)) {   
+    
+    if (inputLedBrightness != ledBrightness){
+      ledBrightnessFlash.write(inputLedBrightness);
+      delay(FLASH_DELAY_TIME);
+      ledBrightness = inputLedBrightness;  // Update global variable
+      updateLedBrightness();
+    }
+    printResponseInt(responseEnabled, apiEnabled, true, 0, "LB,1", true, inputLedBrightness);
+  
+  }
+  else {
+    printResponseInt(responseEnabled, apiEnabled, false, 3, "LB,1", true, inputLedBrightness);
+  }
+ 
+}
+
+//***SET OPERATING MODE STATE API FUNCTION***//
+// Function   : setLedBrightness
+//
+// Description: This function is redefinition of main setLedBrightness function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setLedBrightness(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  setLedBrightness(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+//***GET LED Color R***//
+// Function   : getLedColorR
+//
+// Description: This function retrieves LED R Color.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//
+// Return     : ledColorR : int : The current LED R Color.
+//*********************************//
+int getLedColorR(bool responseEnabled, bool apiEnabled) {
+  String commandKey = "LR";
+
+    int tempLedColorR;
+    tempLedColorR = ledColorRFlash.read();
+
+  if ((tempLedColorR < CONF_LED_COLOR_MIN) || (tempLedColorR > CONF_LED_COLOR_MAX)) {  // 
+    tempLedColorR = CONF_LED_COLOR_R_DEFAULT;
+    ledColorRFlash.write(tempLedColorR); // if out of bounds, set to default 
+  }
+
+  printResponseInt(responseEnabled, apiEnabled, true, 0, "LR,0", true, tempLedColorR);
+
+  return tempLedColorR;
+}
+
+//***GET LED Color R FUNCTION***//
+// Function   : getLedColorR
+//
+// Description: This function is redefinition of main getLedColorR function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void getLedColorR(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  if (optionalParameter.length() == 1 && optionalParameter.toInt() == 0) {
+    getLedColorR(responseEnabled, apiEnabled);
+  }
+}
+
+//***SET LED COLOR R FUNCTION***//
+// Function   : setLedColorR
+//
+// Description: This function sets the LED Color R.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               inputLedColorR : int : The new LED Color R
+//
+// Return     : void
+//*********************************//
+void setLedColorR(bool responseEnabled, bool apiEnabled, int inputLedColorR) {
+  String commandKey = "LR";
+  
+  if (USB_DEBUG) { Serial.println("DEBUG: setLedColorR");}
+   
+  if ((inputLedColorR >= CONF_LED_COLOR_MIN) && (inputLedColorR <= CONF_LED_COLOR_MAX)) {   
+    
+    if (inputLedColorR != ledColorR){
+      ledColorRFlash.write(inputLedColorR);
+      delay(FLASH_DELAY_TIME);
+      ledColorR = inputLedColorR;  // Update global variable
+      //updateLedColor();
+    }
+    printResponseInt(responseEnabled, apiEnabled, true, 0, "LR,1", true, inputLedColorR);
+  
+  }
+  else {
+    printResponseInt(responseEnabled, apiEnabled, false, 3, "LR,1", true, inputLedColorR);
+  }
+ 
+}
+
+//***SET LED COLOR FUNCTION***//
+// Function   : setLedColor
+//
+// Description: This function is redefinition of main setLedColor function to match the types of API function arguments.
+//
+// Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
+//                                        The serial printing is ignored if it's set to false.
+//               apiEnabled : bool : The api response is sent if it's set to true.
+//                                   Manual response is sent if it's set to false.
+//               optionalParameter : String : The input parameter string should contain one element with value of zero.
+//
+// Return     : void
+void setLedColorR(bool responseEnabled, bool apiEnabled, String optionalParameter) {
+  setLedColorR(responseEnabled, apiEnabled, optionalParameter.toInt());
+}
+
+
 //***SOFT RESET FUNCTION***//
 // Function   : softReset
 //
@@ -2137,10 +2820,10 @@ void softReset(bool responseEnabled, bool apiEnabled) {
   softwareReset();
 
 }
-//***FACTORY RESET API FUNCTION***//
+//***SOFT RESET API FUNCTION***//
 // Function   : softReset
 //
-// Description: This function is redefinition of main softRest function to match the types of API function arguments.
+// Description: This function is redefinition of main softReset function to match the types of API function arguments.
 //
 // Parameters :  responseEnabled : bool : The response for serial printing is enabled if it's set to true.
 //                                        The serial printing is ignored if it's set to false.

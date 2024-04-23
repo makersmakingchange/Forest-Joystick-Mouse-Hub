@@ -652,9 +652,10 @@ void joystickNeutralCalibration() {
   Serial.println(minRange);
   */
   
-  // Calibration Complete, show mode LED
+  // Calibration Complete, show slot and mode LEDs
   showModeLED();
-
+  leds.setPixelColor(mouseSlots[slotNumber].slotLEDNumber, leds.Color(ledColorR, ledColorG, ledColorB)); // Turn Slot to LED color
+  leds.show();
 }
 
 

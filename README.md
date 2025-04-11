@@ -1,5 +1,6 @@
 # Forest Joystick Mouse Hub
 
+## Overview
 The Forest Hub enables a user to connect an analog joystick and up to four assistive switches to emulate a USB Mouse or USB Gamepad. As a USB Mouse, the joystick controls cursor movement and the assistive switches activate the left mouse button, right mouse button, middle mouse button, and scroll. As a USB Mouse, the joystick maps to the joystick/thumbstick and the assistive switches map to the joystick buttons. An additional assistive switch can be attached to the Hub to cycle between three setting slots and change the output mode between USB Mouse mode and USB Gamepad mode.
 
 The device is comprised of a custom printed circuit board, off-the-shelf electronics, and 3D printed parts. The overall cost of materials for a single build is about $100. The individual unit cost cost is closer to $55. 
@@ -11,7 +12,6 @@ The latest version (V2.1) includes a new easier to use LED jig, updated firmware
 An updated version of the PCB and enclosure has been released (V2.0.1, 2024-Feb-20). The last version of the Forest Hub (v2.0.1) has been built and tested.
 
 <img src="Photos/Forest_Hub.png" width="500" alt="A Forest Hub in a red enclosure.">
-
 
 MMC Assistive Device Library Listing: https://makersmakingchange.com/s/product/forest-joystick-mouse-hub/01tJR000000E4bdYAC
 
@@ -113,7 +113,9 @@ The concept for the Forest Hub was based on the [Enabled Controller Mini](https:
 The Forest Hub has been certified as open source hardware by the Open Source Hardware Association under the OSHWA UID [CA000033](https://certification.oshwa.org/ca000033.html).
 
 <img src="oshw/oshw-certification-mark-wide-v2.6.png" alt="Open Source Hardware Certification Mark for Forest Hub: CA000033">
+
 ---
+<!-- ABOUT MMC START -->
 
 ## About Makers Making Change
 [<img src="https://raw.githubusercontent.com/makersmakingchange/makersmakingchange/main/img/mmc_logo.svg" width="500" alt="Makers Making Change Logo">](https://www.makersmakingchange.com/)
@@ -133,3 +135,4 @@ Makers Making Change leverages the capacity of community based Makers, Disabilit
 
 ### Contact Us
 For technical questions, to get involved, or to share your experience we encourage you to [visit our website](https://www.makersmakingchange.com/) or [contact us](https://www.makersmakingchange.com/s/contact).
+<!-- ABOUT MMC END -->

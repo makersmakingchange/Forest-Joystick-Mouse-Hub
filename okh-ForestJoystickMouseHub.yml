@@ -64,22 +64,22 @@ development-stage: product
 documentation-home: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub
 archive-download: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/archive/refs/heads/main.zip
 design-files:
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Design_Files/CAD_Files
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Design_Files/CAD_Files
     title: CAD Files
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Design_Files/PCB_Files
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Design_Files/PCB_Files
     title: PCB Files
-bom: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Documentation/Forest_Hub_BOM.xlsx
+bom: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Documentation/Forest_Hub_BOM.xlsx
 making-instructions:
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Documentation/Forest_Hub_Maker_Guide.pdf
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Documentation/Forest_Hub_Maker_Guide.pdf
     title: Forest Hub Maker Guide
 manufacturing-files:
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Build_Files/3D_Printing_Files
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Build_Files/3D_Printing_Files
     title: 3D Printing Files
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Build_Files/PCB_Build_Files
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Build_Files/PCB_Build_Files
     title: PCB Files
 operating-instructions:
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Documentation/Forest_Hub_User_Guide.pdf
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Documentation/Forest_Hub_User_Guide.pdf
     title: Forest Hub User Guide
 software:
-  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/master/Build_Files/Firmware_Files
+  - path: https://github.com/makersmakingchange/Forest-Joystick-Mouse-Hub/tree/main/Build_Files/Firmware_Files
     title: Forest Hub Firmware
